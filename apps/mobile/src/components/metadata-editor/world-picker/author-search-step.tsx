@@ -10,32 +10,45 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PickerHeader } from "../picker-header";
 
 type Props = {
-  platform: EpiclesePlatformResponse;
+  // 省略するとプラットフォームを問わず検索する (アイテムの作者で絞り込むときなど)
+  platform?: EpiclesePlatformResponse;
+  title?: string;
+  // 結果の先頭に出す、作者を選ばない選択肢 (「すべての作者」など)
+  allOption?: { label: string; onSelect: () => void };
   onBack: () => void;
   onSelect: (author: EpicleseAuthorResponse) => void;
-  onRegister: () => void;
+  // 省略すると「見つからない場合は作者を登録」を出さない
+  onRegister?: () => void;
 };
 
-export const AuthorSearchStep = ({ platform, onBack, onSelect, onRegister }: Props) => {
+export const AuthorSearchStep = ({
+  platform,
+  title = "ワールド作者",
+  allOption,
+  onBack,
+  onSelect,
+  onRegister,
+}: Props) => {
   const client = useAtomValue(clientAtom);
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
 
+  const platformId = platform?.id;
   const fetchAuthors = useCallback(
     async (q: string) => {
       const { data } = await client.epiclese.v1.authors.get({
-        query: { q, platform: platform.id },
+        query: platformId ? { q, platform: platformId } : { q },
         throwOnError: true,
       });
       return data.items;
     },
-    [client, platform.id],
+    [client, platformId],
   );
   const { results, isLoading, isError, retry } = useDebouncedSearch(query, fetchAuthors);
 
   return (
     <>
-      <PickerHeader title="ワールド作者" left={{ label: "戻る", onPress: onBack }} />
+      <PickerHeader title={title} left={{ label: "戻る", onPress: onBack }} />
       <View className="px-4 py-3">
         <CatalystSearchField
           value={query}
@@ -70,10 +83,21 @@ export const AuthorSearchStep = ({ platform, onBack, onSelect, onRegister }: Pro
               </CatalystText>
             )
           }
+          ListHeaderComponent={
+            allOption ? (
+              <CatalystListItem onPress={allOption.onSelect} accessibilityRole="button" className="px-4">
+                <CatalystText variant="label" className="flex-1">
+                  {allOption.label}
+                </CatalystText>
+              </CatalystListItem>
+            ) : undefined
+          }
           ListFooterComponent={
-            <Pressable onPress={onRegister} className="px-4 py-5">
-              <CatalystText tone="tint">見つからない場合は作者を登録</CatalystText>
-            </Pressable>
+            onRegister ? (
+              <Pressable onPress={onRegister} className="px-4 py-5">
+                <CatalystText tone="tint">見つからない場合は作者を登録</CatalystText>
+              </Pressable>
+            ) : undefined
           }
           renderItem={({ item: author }) => (
             <CatalystListItem onPress={() => onSelect(author)} accessibilityRole="button" className="px-4">
