@@ -41,11 +41,12 @@ const ThemeHeader = ({ theme }: { theme: CatalystWeeklyTheme }) => {
 
   return (
     <View className="gap-4 bg-light-background pb-5 dark:bg-dark-background">
-      <CatalystMediaFrame>
+      {/* お題のバナーは 1200:400 = 3:1。横長の画面で画面を占めすぎないよう高さを画面の 30% までにし、
+          そのときは上下が切れないよう 3:1 のまま中央に置く */}
+      <CatalystMediaFrame style={{ width: headerHeight * 3, alignSelf: "center" }}>
         <UniImage
           source={{ uri: getCdnUrl({ src: theme.bannerUrl ?? theme.generatedBannerUrl, variant: "header", width: 1500 }) }}
           className="w-full"
-          // お題のバナーは 1200:400 = 3:1。横長の画面で画面を占めすぎないよう、高さは画面の 30% までにする
           style={{ height: headerHeight }}
           contentFit="cover"
         />

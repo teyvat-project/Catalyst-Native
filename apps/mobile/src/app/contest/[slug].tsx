@@ -205,12 +205,13 @@ const ContestHeader = ({ contest, awards, voteRights }: HeaderProps) => {
         .filter((t) => t.length > 0)
     : [];
 
-  // 画像は 1500:500 = 3:1。横長の画面で画面を占めすぎないよう、高さは画面の 30% までにする
+  // 画像は 1500:500 = 3:1。横長の画面で画面を占めすぎないよう高さを画面の 30% までにし、
+  // そのときは上下が切れないよう 3:1 のまま中央に置く
   const imageHeight = headerHeight;
 
   return (
     <View className="bg-light-background dark:bg-dark-background">
-      <View style={{ height: imageHeight }}>
+      <View style={{ width: imageHeight * 3, height: imageHeight, alignSelf: "center" }}>
         {contest.headerUrl ? (
           <UniImage
             source={{
