@@ -10,6 +10,7 @@ import {
 } from "@/components/design-system";
 import { ProfileEmoji } from "@/components/user/profile-emoji";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
+import { topInsetFor } from "@/lib/device-layout";
 import { getCdnUrl } from "@/lib/media";
 import { accountAtom } from "@/models/atoms/account";
 import { clientAtom } from "@/models/atoms/credential";
@@ -22,7 +23,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { CalendarDays, ChevronRight, Cog, Images, LogIn, Trophy, User } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { withUniwind } from "uniwind";
 
 type RelationshipCounts = {
@@ -181,6 +182,7 @@ type Props = {
 };
 
 export const DrawerContent = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const [account, setAccount] = useAtom(accountAtom);
   const client = useAtomValue(clientAtom);
   const [counts, setCounts] = useState<RelationshipCounts | null>(null);
@@ -245,8 +247,13 @@ export const DrawerContent = ({ navigation }: Props) => {
   }, [account?.user.screenName, client.catalyst]);
 
   return (
-    // ドロワーは画面の左に出るので、右のセーフエリア (iPhone Duo のステータス表示など) は避けなくていい
-    <SafeAreaView edges={["top", "bottom", "left"]} className="flex-1 bg-light-background dark:bg-dark-surface">
+    // ドロワーは画面の左に出るので、右のセーフエリア (iPhone Duo のステータス表示など) は避けなくていい。
+    // 上は、ステータスバーがなくても画面の丸い角に掛からないよう最低限空ける
+    <SafeAreaView
+      edges={["bottom", "left"]}
+      className="flex-1 bg-light-background dark:bg-dark-surface"
+      style={{ paddingTop: topInsetFor(insets.top) }}
+    >
       {account?.user.profile != null ? (
         <DrawerProfileSection
           navigation={navigation}

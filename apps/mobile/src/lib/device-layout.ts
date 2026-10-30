@@ -7,6 +7,12 @@ export const columnsFor = (width: number, target: number, min: number) => Math.m
 /** ヘッダー画像 (1500:500 = 3:1) の高さ。横長の画面で画面を占めすぎないよう、画面の高さの 30% までにする */
 export const headerHeightFor = (width: number, height: number) => Math.min(width / 3, height * 0.3);
 
+/**
+ * 画面上部に置く UI の上の余白。iPhone Duo はステータス表示が上端ではなく右上にあるので insets.top が 0 になり、
+ * そのままだと左上のアイコンが画面の丸い角に掛かる。上端にステータスバーがある端末では insets.top をそのまま使う
+ */
+export const topInsetFor = (top: number) => Math.max(top, 12);
+
 // Uniwind は組み立てたクラス名を生成しないので、完全なクラス名を並べておく
 const WIDTH_CLASSES = ["w-full", "w-1/2", "w-1/3", "w-1/4", "w-1/5", "w-1/6"];
 

@@ -1,4 +1,5 @@
 import { CatalystText } from "@/components/design-system";
+import { topInsetFor } from "@/lib/device-layout";
 import { cn } from "@/lib/utils";
 import { useTheme } from "expo-router";
 import type { NativeStackHeaderProps } from "expo-router/build/react-navigation/native-stack/types";
@@ -45,7 +46,7 @@ export const CatalystAppHeader = ({
       className="border-b border-light-divider bg-light-background dark:border-dark-divider dark:bg-dark-background border-b-transparent"
       testID="catalyst-app-header"
       style={{
-        paddingTop: insets.top,
+        paddingTop: topInsetFor(insets.top),
         paddingLeft: sideInsets ? insets.left : 0,
         paddingRight: sideInsets ? insets.right : 0,
       }}

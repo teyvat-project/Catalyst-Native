@@ -12,6 +12,11 @@ jest.mock("react-native-safe-area-context", () => ({
 }));
 
 describe("CatalystAppHeader", () => {
+  it("上端にステータスバーがないときも、角に掛からないよう上を空ける", async () => {
+    await render(<CatalystAppHeader title="ホーム" />);
+    expect(screen.getByTestId("catalyst-app-header")).toHaveStyle({ paddingTop: 12 });
+  });
+
   it("画面上部に置くときはセーフエリアの左右を避ける", async () => {
     await render(<CatalystAppHeader title="設定とプライバシー" />);
     expect(screen.getByTestId("catalyst-app-header")).toHaveStyle({ paddingLeft: 0, paddingRight: 84 });

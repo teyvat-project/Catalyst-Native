@@ -1,4 +1,4 @@
-import { columnsFor, headerHeightFor, widthClassFor } from "./device-layout";
+import { columnsFor, headerHeightFor, topInsetFor, widthClassFor } from "./device-layout";
 
 describe("columnsFor", () => {
   // 幅: iPhone 402 / Duo 畳 466 / iPad mini 744 / iPad 11" 834 / Duo 開 951 / iPad 13" 1032 / iPad 13" 横 1376
@@ -36,5 +36,15 @@ describe("widthClassFor", () => {
 
   it("6 列を超えたら w-1/6 を返す", () => {
     expect(widthClassFor(9)).toBe("w-1/6");
+  });
+});
+
+describe("topInsetFor", () => {
+  it("上端にステータスバーがない画面 (iPhone Duo) では、角に掛からないよう 12pt 空ける", () => {
+    expect(topInsetFor(0)).toBe(12);
+  });
+
+  it("ステータスバーの分の余白があればそのまま使う", () => {
+    expect(topInsetFor(59)).toBe(59);
   });
 });
