@@ -78,11 +78,11 @@ export const ContestCard = ({ contest }: Props) => {
                 width: 1500,
               }),
             }}
-            className="h-32 w-full"
+            className="aspect-[3/1] w-full"
             contentFit="cover"
           />
         ) : (
-          <View className="h-32 w-full items-center justify-center bg-light-surface-muted dark:bg-dark-surface-muted">
+          <View className="aspect-[3/1] w-full items-center justify-center bg-light-surface-muted dark:bg-dark-surface-muted">
             <UniTrophy
               size={40}
               className="text-light-icon dark:text-dark-icon"

@@ -20,6 +20,7 @@ import { TimelineStatus } from "@/components/timeline/status";
 import { Markdown } from "@/components/ui/markdown";
 import { useAsyncOneTimeEffect } from "@/hooks/use-async-one-time-effect";
 import { abs } from "@/lib/dayjs";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { getCdnUrl } from "@/lib/media";
 import { clientAtom } from "@/models/atoms/credential";
 import type { CatalystContest, CatalystStatus } from "@/models/sdk-types";
@@ -32,7 +33,6 @@ import {
   Alert,
   Pressable,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { withUniwind } from "uniwind";
@@ -197,7 +197,7 @@ type HeaderProps = {
 };
 
 const ContestHeader = ({ contest, awards, voteRights }: HeaderProps) => {
-  const { width: screenWidth } = useWindowDimensions();
+  const { headerHeight } = useDeviceLayout();
   const terms = contest.terms
     ? contest.terms
         .split("\n")
@@ -205,11 +205,12 @@ const ContestHeader = ({ contest, awards, voteRights }: HeaderProps) => {
         .filter((t) => t.length > 0)
     : [];
 
-  const imageHeight = screenWidth / 3; // 1500:500 = 3:1
+  // 画像は 1500:500 = 3:1。横長の画面で画面を占めすぎないよう、高さは画面の 30% までにする
+  const imageHeight = headerHeight;
 
   return (
     <View className="bg-light-background dark:bg-dark-background">
-      <View style={{ aspectRatio: 3 / 1 }}>
+      <View style={{ height: imageHeight }}>
         {contest.headerUrl ? (
           <UniImage
             source={{
