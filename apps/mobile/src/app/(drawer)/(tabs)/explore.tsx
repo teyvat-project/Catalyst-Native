@@ -15,6 +15,7 @@ import { useScrollToTop } from "expo-router/react-navigation";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { v4 } from "uuid";
 
 // Web 版の検索と同じ並び
@@ -37,6 +38,7 @@ export default function HomeScreen() {
   // ページャーは全タブを最初から描画するので、一度開いたタブだけ中身を出して、開くまで読み込みを始めない
   const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<string>>(() => new Set([TABS[0].key]));
   const client = useAtomValue(clientAtom);
+  const insets = useSafeAreaInsets();
   const [stateKey, setStateKey] = useState(v4());
   const timelineRef = useRef<TimelineHandle>(null);
   const usersRef = useRef<TimelineHandle>(null);
@@ -90,7 +92,8 @@ export default function HomeScreen() {
 
   return (
     <View className="flex-col flex-1 bg-light-background dark:bg-dark-background">
-      <View className="px-4 pt-1">
+      {/* 検索欄はステータス表示 (iPhone Duo では右上) と重ならないよう、セーフエリアの左右を避ける */}
+      <View className="pt-1" style={{ paddingLeft: 16 + insets.left, paddingRight: 16 + insets.right }}>
         <CatalystSearchField
           value={state}
           onChangeText={setState}

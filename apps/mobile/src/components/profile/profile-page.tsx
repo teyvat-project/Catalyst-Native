@@ -280,7 +280,11 @@ export function ProfilePage({ screenName, showBackButton = true }: Props) {
 
         <View
           className="flex-row border-b border-light-divider bg-light-background dark:border-dark-divider dark:bg-dark-surface"
-          style={{ width: screenWidth }}
+          style={{
+            width: screenWidth,
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          }}
         >
           <ProfileTabs
             activeIndex={activeTab}
@@ -326,6 +330,8 @@ export function ProfilePage({ screenName, showBackButton = true }: Props) {
           top: NAV_BAR_HEIGHT,
           left: 0,
           width: screenWidth,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
           opacity: stickyTabBarOpacity,
         }}
         pointerEvents={isStickyTabBarInteractive ? "auto" : "none"}

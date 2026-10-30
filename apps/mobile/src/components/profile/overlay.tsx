@@ -84,7 +84,12 @@ export const ProfileOverlay = ({ user, relationships, scrollY, showBackButton = 
   return (
     <View
       className="absolute left-0 right-0 top-0 flex-row w-full"
-      style={{ height: overlayHeight, paddingTop: insets.top }}
+      style={{
+        height: overlayHeight,
+        paddingTop: insets.top,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
     >
       <UniAnimatedView
         className="bg-light-background dark:bg-dark-surface"

@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Gesture, GestureDetector, type GestureType } from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { runOnJS } from "react-native-reanimated";
 import { CatalystDivider } from "./divider";
 import { CatalystText } from "./text";
@@ -59,6 +60,7 @@ export function CatalystTabs({
   const [activeIndex, setActiveIndex] = useState(defaultIndex);
   const reducedMotion = useReducedMotion();
   const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   // ページとタブバーの幅は画面幅ではなく実際に描画された幅を使う。セーフエリアの余白や設定画面の左右分割で、
   // 画面幅とずれることがあるため。最初の onLayout までは画面幅で代用する
   const [pageWidth, setPageWidth] = useState(windowWidth);
@@ -108,16 +110,18 @@ export function CatalystTabs({
     if (!activeFrame) return;
     const margin = 48;
     const left = tabBarScrollX.current;
+    // タブバーはセーフエリアの左右を避けているので、見えている幅はページ幅より狭い
+    const viewportWidth = pageWidth - insets.left - insets.right;
     let x: number | null = null;
     if (activeFrame.x < left) {
       x = Math.max(0, activeFrame.x - margin);
-    } else if (activeFrame.x + activeFrame.width > left + pageWidth) {
-      x = activeFrame.x + activeFrame.width + margin - pageWidth;
+    } else if (activeFrame.x + activeFrame.width > left + viewportWidth) {
+      x = activeFrame.x + activeFrame.width + margin - viewportWidth;
     }
     if (x !== null) {
       tabBarRef.current?.scrollTo({ x, animated: !reducedMotion });
     }
-  }, [activeFrame, pageWidth, reducedMotion]);
+  }, [activeFrame, pageWidth, insets.left, insets.right, reducedMotion]);
 
   const handleTabPress = (index: number) => {
     isScrollingProgrammatically.current = true;
@@ -236,9 +240,10 @@ export function CatalystTabs({
   return (
     <PagerGesturesContext.Provider value={pagerGestures}>
       <View className="flex-1">
+        {/* タブバーは画面上部に置かれるので、ステータス表示 (iPhone Duo では右上) と重ならないようセーフエリアの左右を避ける */}
         {scrollable ? (
           // 区切り線はスクロールさせず、画面幅いっぱいに引く
-          <View>
+          <View testID="catalyst-tabs-bar" style={{ paddingLeft: insets.left, paddingRight: insets.right }}>
             <CatalystDivider className="absolute bottom-0" />
             <ScrollView
               ref={tabBarRef}
@@ -253,7 +258,7 @@ export function CatalystTabs({
             </ScrollView>
           </View>
         ) : (
-          tabBar
+          <View testID="catalyst-tabs-bar" style={{ paddingLeft: insets.left, paddingRight: insets.right }}>{tabBar}</View>
         )}
 
         <View

@@ -16,6 +16,11 @@ jest.mock("react-native-gesture-handler", () => {
   };
 });
 
+// iPhone Duo を開いた状態と同じく、右にステータス表示の余白があるものとして描画する
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 84, bottom: 34, left: 0 }),
+}));
+
 const tabs = [
   { key: "a", label: "A" },
   { key: "b", label: "B" },
@@ -78,6 +83,11 @@ describe("CatalystTabs", () => {
       offset: 0,
       animated: false,
     });
+  });
+
+  it("タブバーはセーフエリアの左右を避ける", async () => {
+    await renderTabs(0);
+    expect(screen.getByTestId("catalyst-tabs-bar")).toHaveStyle({ paddingLeft: 0, paddingRight: 84 });
   });
 
   it("幅 0 の layout は無視する", async () => {
