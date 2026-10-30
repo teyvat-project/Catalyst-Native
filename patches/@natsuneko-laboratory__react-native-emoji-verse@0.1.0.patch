@@ -1,0 +1,197 @@
+diff --git a/lib/emoji-picker-view.js b/lib/emoji-picker-view.js
+index 2a15d78794aaf1239845594e3246d62c727cd8e4..b8f08a8d8bab159fbf4294695f5dbfbce7a5a921 100644
+--- a/lib/emoji-picker-view.js
++++ b/lib/emoji-picker-view.js
+@@ -1,9 +1,12 @@
+ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+ import { Clock, Flag, Heart, Lightbulb, PawPrint, Plane, Search, Smile, Star, StarPlus, Trophy, Utensils, X, } from "lucide-react-native";
+ import { memo, useCallback, useEffect, useMemo, useState } from "react";
+-import { ActivityIndicator, FlatList, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme, } from "react-native";
++import { ActivityIndicator, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme, } from "react-native";
+ import { applySkinTone, SKIN_TONE_MODIFIERS, SKIN_TONES, toVariantItem } from "./skin-tone";
+-const GRID_COLUMNS = Platform.OS === "ios" && Platform.isPad ? 12 : 8;
++// 列数はグリッドの幅から決める。iPad かどうかで決めると、iPhone Duo を開いた状態のような広い画面ですき間が空く
++const MIN_GRID_COLUMNS = 8;
++const TARGET_CELL_SIZE = 56;
++const GRID_PADDING = 8;
+ const EMOJI_SIZE = 36;
+ const SKIN_TONE_ICON_SIZE = 20;
+ // 肌の色の選択肢として表示する ✋ (U+270B)
+@@ -24,12 +27,12 @@ const ICON_MAP = {
+ function DefaultImage({ source, style }) {
+     return _jsx(Image, { source: source, style: style, resizeMode: "contain" });
+ }
+-const EmojiItemCell = memo(({ item, skinTone, onPress, onLongPress, renderGlyph, ImageComponent, }) => {
++const EmojiItemCell = memo(({ item, skinTone, onPress, onLongPress, renderGlyph, ImageComponent, columns, }) => {
+     // 長押しでは肌の色を適用する前の絵文字からバリエーションを選ばせる
+     const toned = useMemo(() => applySkinTone(item, skinTone), [item, skinTone]);
+     const handlePress = useCallback(() => onPress(toned), [toned, onPress]);
+     const handleLongPress = useCallback(() => onLongPress(item), [item, onLongPress]);
+-    return (_jsx(Pressable, { onPress: handlePress, onLongPress: item.variants ? handleLongPress : undefined, style: styles.emojiCell, children: toned.type.kind === "unicode" ? (renderGlyph(toned.type.emoji, EMOJI_SIZE)) : (_jsx(ImageComponent, { source: { uri: toned.type.url }, style: styles.emojiImage })) }));
++    return (_jsx(Pressable, { onPress: handlePress, onLongPress: item.variants ? handleLongPress : undefined, style: [styles.emojiCell, { width: `${100 / columns}%` }], children: toned.type.kind === "unicode" ? (renderGlyph(toned.type.emoji, EMOJI_SIZE)) : (_jsx(ImageComponent, { source: { uri: toned.type.url }, style: styles.emojiImage })) }));
+ });
+ EmojiItemCell.displayName = "EmojiItemCell";
+ function CategoryButton({ icon, isSelected, disabled, onPress, }) {
+@@ -46,6 +49,10 @@ export function EmojiPickerView({ categories, onEmojiSelected, isLoading = false
+     const [innerSkinTone, setInnerSkinTone] = useState(defaultSkinTone);
+     const [isSkinTonePickerOpen, setIsSkinTonePickerOpen] = useState(false);
+     const [variantTarget, setVariantTarget] = useState(null);
++    const [gridWidth, setGridWidth] = useState(0);
++    const gridColumns = Math.max(MIN_GRID_COLUMNS, Math.floor((gridWidth - GRID_PADDING * 2) / TARGET_CELL_SIZE));
++    // セルは正方形 (aspectRatio: 1) なので、行の高さはセルの幅と同じ
++    const rowHeight = gridWidth > 0 ? (gridWidth - GRID_PADDING * 2) / gridColumns : EMOJI_SIZE + 8;
+     const skinTone = controlledSkinTone ?? innerSkinTone;
+     const hasVariants = useMemo(() => categories.some((c) => c.emojis.some((e) => e.variants)), [categories]);
+     const showSkinToneSelector = showSkinToneSelectorProp ?? hasVariants;
+@@ -90,7 +97,7 @@ export function EmojiPickerView({ categories, onEmojiSelected, isLoading = false
+         setVariantTarget(null);
+         onEmojiSelected(emoji);
+     }, [onEmojiSelected]);
+-    const renderItem = useCallback(({ item }) => (_jsx(EmojiItemCell, { item: item, skinTone: skinTone, onPress: handleEmojiPress, onLongPress: setVariantTarget, renderGlyph: renderGlyph, ImageComponent: ImageComponent })), [skinTone, handleEmojiPress, renderGlyph, ImageComponent]);
++    const renderItem = useCallback(({ item }) => (_jsx(EmojiItemCell, { item: item, skinTone: skinTone, onPress: handleEmojiPress, onLongPress: setVariantTarget, renderGlyph: renderGlyph, ImageComponent: ImageComponent, columns: gridColumns })), [skinTone, handleEmojiPress, renderGlyph, ImageComponent, gridColumns]);
+     const keyExtractor = useCallback((item, index) => `${item.id}-${index}`, []);
+     const selectedCategory = categories.find((c) => c.id === selectedCategoryId) ?? categories[0];
+     const displayEmojis = isSearching ? searchResults : (selectedCategory?.emojis ?? []);
+@@ -100,9 +107,9 @@ export function EmojiPickerView({ categories, onEmojiSelected, isLoading = false
+     return (
+     // 通常の View (flex:1) をルートにすることで、BottomSheetContent が計算した
+     // height を正しく受け取れる。BottomSheetView は position:absolute のため不可。
+-    _jsxs(View, { style: [styles.container, { backgroundColor: bgColor }], children: [_jsxs(View, { style: { backgroundColor: bgColor }, children: [listHeaderPrepend, _jsxs(View, { style: [styles.searchBar, { backgroundColor: panelColor }], children: [_jsx(Search, { size: 16, color: "#8E8E93" }), _jsx(TextInput, { style: [styles.searchInput, { color: theme === "dark" ? "#FFFFFF" : "#000000" }], placeholder: searchPlaceholder, placeholderTextColor: "#8E8E93", value: searchText, onChangeText: setSearchText, autoCapitalize: "none", autoCorrect: false }), searchText.length > 0 && (_jsx(Pressable, { onPress: () => setSearchText(""), children: _jsx(X, { size: 16, color: "#8E8E93" }) })), showSkinToneSelector && (_jsx(Pressable, { accessibilityRole: "button", accessibilityLabel: "Skin tone", onPress: () => setIsSkinTonePickerOpen((open) => !open), hitSlop: 8, children: renderGlyph(skinToneSample(skinTone), SKIN_TONE_ICON_SIZE) }))] }), showSkinToneSelector && isSkinTonePickerOpen && (_jsx(View, { style: [styles.skinTonePicker, { backgroundColor: panelColor }], children: SKIN_TONES.map((tone) => (_jsx(Pressable, { accessibilityRole: "button", accessibilityState: { selected: tone === skinTone }, onPress: () => handleSkinToneChange(tone), style: [styles.skinToneOption, tone === skinTone && { backgroundColor: dividerColor }], children: renderGlyph(skinToneSample(tone), SKIN_TONE_ICON_SIZE) }, tone))) })), _jsx(ScrollView, { horizontal: true, showsHorizontalScrollIndicator: false, style: styles.categoryBar, contentContainerStyle: styles.categoryBarContent, children: categories.map((category) => (_jsx(CategoryButton, { icon: category.icon, isSelected: selectedCategoryId === category.id, disabled: isSearching, onPress: () => setSelectedCategoryId(category.id) }, category.id))) }), _jsx(View, { style: [styles.divider, { backgroundColor: dividerColor }] })] }), isLoading ? (_jsx(View, { style: styles.loadingContainer, children: _jsx(ActivityIndicator, {}) })) : (_jsx(FlatListComponent, { style: styles.list, data: displayEmojis, renderItem: renderItem, keyExtractor: keyExtractor, numColumns: GRID_COLUMNS, contentContainerStyle: styles.gridContent, columnWrapperStyle: styles.gridRow, getItemLayout: (_, index) => ({
+-                    length: EMOJI_SIZE + 8,
+-                    offset: (EMOJI_SIZE + 8) * Math.floor(index / GRID_COLUMNS),
++    _jsxs(View, { style: [styles.container, { backgroundColor: bgColor }], children: [_jsxs(View, { style: { backgroundColor: bgColor }, children: [listHeaderPrepend, _jsxs(View, { style: [styles.searchBar, { backgroundColor: panelColor }], children: [_jsx(Search, { size: 16, color: "#8E8E93" }), _jsx(TextInput, { style: [styles.searchInput, { color: theme === "dark" ? "#FFFFFF" : "#000000" }], placeholder: searchPlaceholder, placeholderTextColor: "#8E8E93", value: searchText, onChangeText: setSearchText, autoCapitalize: "none", autoCorrect: false }), searchText.length > 0 && (_jsx(Pressable, { onPress: () => setSearchText(""), children: _jsx(X, { size: 16, color: "#8E8E93" }) })), showSkinToneSelector && (_jsx(Pressable, { accessibilityRole: "button", accessibilityLabel: "Skin tone", onPress: () => setIsSkinTonePickerOpen((open) => !open), hitSlop: 8, children: renderGlyph(skinToneSample(skinTone), SKIN_TONE_ICON_SIZE) }))] }), showSkinToneSelector && isSkinTonePickerOpen && (_jsx(View, { style: [styles.skinTonePicker, { backgroundColor: panelColor }], children: SKIN_TONES.map((tone) => (_jsx(Pressable, { accessibilityRole: "button", accessibilityState: { selected: tone === skinTone }, onPress: () => handleSkinToneChange(tone), style: [styles.skinToneOption, tone === skinTone && { backgroundColor: dividerColor }], children: renderGlyph(skinToneSample(tone), SKIN_TONE_ICON_SIZE) }, tone))) })), _jsx(ScrollView, { horizontal: true, showsHorizontalScrollIndicator: false, style: styles.categoryBar, contentContainerStyle: styles.categoryBarContent, children: categories.map((category) => (_jsx(CategoryButton, { icon: category.icon, isSelected: selectedCategoryId === category.id, disabled: isSearching, onPress: () => setSelectedCategoryId(category.id) }, category.id))) }), _jsx(View, { style: [styles.divider, { backgroundColor: dividerColor }] })] }), isLoading ? (_jsx(View, { style: styles.loadingContainer, children: _jsx(ActivityIndicator, {}) })) : (_jsx(FlatListComponent, { key: gridColumns, style: styles.list, onLayout: (e) => setGridWidth(e.nativeEvent.layout.width), data: displayEmojis, renderItem: renderItem, keyExtractor: keyExtractor, numColumns: gridColumns, contentContainerStyle: styles.gridContent, columnWrapperStyle: styles.gridRow, getItemLayout: (_, index) => ({
++                    length: rowHeight,
++                    offset: rowHeight * Math.floor(index / gridColumns),
+                     index,
+                 }), initialNumToRender: 40, maxToRenderPerBatch: 40, windowSize: 5, removeClippedSubviews: true })), variantTarget && (_jsx(Pressable, { style: styles.variantBackdrop, onPress: () => setVariantTarget(null), children: _jsx(View, { style: [styles.variantPanel, { backgroundColor: panelColor }], children: [variantTarget.id, ...(variantTarget.variants ?? [])].map((emoji) => (_jsx(Pressable, { onPress: () => handleEmojiPress(toVariantItem(variantTarget, emoji)), style: styles.variantCell, children: renderGlyph(emoji, EMOJI_SIZE) }, emoji))) }) }))] }));
+ }
+@@ -167,7 +174,7 @@ const styles = StyleSheet.create({
+         flex: 1,
+     },
+     gridContent: {
+-        padding: 8,
++        padding: GRID_PADDING,
+     },
+     loadingContainer: {
+         flex: 1,
+@@ -178,7 +185,6 @@ const styles = StyleSheet.create({
+         justifyContent: "flex-start",
+     },
+     emojiCell: {
+-        width: `${100 / GRID_COLUMNS}%`,
+         aspectRatio: 1,
+         alignItems: "center",
+         justifyContent: "center",
+diff --git a/src/emoji-picker-view.tsx b/src/emoji-picker-view.tsx
+index 677137b31b9238f2a270bba4cb7ae37bf5e8c25d..abd2616673cacebdede1e7a2062d54238bb12c7f 100644
+--- a/src/emoji-picker-view.tsx
++++ b/src/emoji-picker-view.tsx
+@@ -20,7 +20,7 @@ import {
+   type FlatListProps,
+   Image,
+   type ImageStyle,
+-  Platform,
++  type LayoutChangeEvent,
+   Pressable,
+   ScrollView,
+   type StyleProp,
+@@ -33,7 +33,10 @@ import {
+ import { applySkinTone, SKIN_TONE_MODIFIERS, SKIN_TONES, toVariantItem } from "./skin-tone";
+ import type { EmojiCategory, EmojiIcon, EmojiItem, SkinTone } from "./types";
+ 
+-const GRID_COLUMNS = Platform.OS === "ios" && Platform.isPad ? 12 : 8;
++// 列数はグリッドの幅から決める。iPad かどうかで決めると、iPhone Duo を開いた状態のような広い画面ですき間が空く
++const MIN_GRID_COLUMNS = 8;
++const TARGET_CELL_SIZE = 56;
++const GRID_PADDING = 8;
+ const EMOJI_SIZE = 36;
+ const SKIN_TONE_ICON_SIZE = 20;
+ 
+@@ -109,6 +112,7 @@ const EmojiItemCell = memo(
+     onLongPress,
+     renderGlyph,
+     ImageComponent,
++    columns,
+   }: {
+     item: EmojiItem;
+     skinTone: SkinTone;
+@@ -116,6 +120,7 @@ const EmojiItemCell = memo(
+     onLongPress: (item: EmojiItem) => void;
+     renderGlyph: GlyphRenderer;
+     ImageComponent: React.ComponentType<EmojiImageProps>;
++    columns: number;
+   }) => {
+     // 長押しでは肌の色を適用する前の絵文字からバリエーションを選ばせる
+     const toned = useMemo(() => applySkinTone(item, skinTone), [item, skinTone]);
+@@ -126,7 +131,7 @@ const EmojiItemCell = memo(
+       <Pressable
+         onPress={handlePress}
+         onLongPress={item.variants ? handleLongPress : undefined}
+-        style={styles.emojiCell}
++        style={[styles.emojiCell, { width: `${100 / columns}%` }]}
+       >
+         {toned.type.kind === "unicode" ? (
+           renderGlyph(toned.type.emoji, EMOJI_SIZE)
+@@ -183,6 +188,10 @@ export function EmojiPickerView({
+   const [innerSkinTone, setInnerSkinTone] = useState<SkinTone>(defaultSkinTone);
+   const [isSkinTonePickerOpen, setIsSkinTonePickerOpen] = useState(false);
+   const [variantTarget, setVariantTarget] = useState<EmojiItem | null>(null);
++  const [gridWidth, setGridWidth] = useState(0);
++  const gridColumns = Math.max(MIN_GRID_COLUMNS, Math.floor((gridWidth - GRID_PADDING * 2) / TARGET_CELL_SIZE));
++  // セルは正方形 (aspectRatio: 1) なので、行の高さはセルの幅と同じ
++  const rowHeight = gridWidth > 0 ? (gridWidth - GRID_PADDING * 2) / gridColumns : EMOJI_SIZE + 8;
+   const skinTone = controlledSkinTone ?? innerSkinTone;
+   const hasVariants = useMemo(() => categories.some((c) => c.emojis.some((e) => e.variants)), [categories]);
+   const showSkinToneSelector = showSkinToneSelectorProp ?? hasVariants;
+@@ -253,9 +262,10 @@ export function EmojiPickerView({
+         onLongPress={setVariantTarget}
+         renderGlyph={renderGlyph}
+         ImageComponent={ImageComponent}
++        columns={gridColumns}
+       />
+     ),
+-    [skinTone, handleEmojiPress, renderGlyph, ImageComponent],
++    [skinTone, handleEmojiPress, renderGlyph, ImageComponent, gridColumns],
+   );
+ 
+   const keyExtractor = useCallback((item: EmojiItem, index: number) => `${item.id}-${index}`, []);
+@@ -350,16 +360,19 @@ export function EmojiPickerView({
+         </View>
+       ) : (
+         <FlatListComponent
++          // FlatList は numColumns を実行中に変えられないので、列数が変わったら作り直す
++          key={gridColumns}
+           style={styles.list}
++          onLayout={(e: LayoutChangeEvent) => setGridWidth(e.nativeEvent.layout.width)}
+           data={displayEmojis}
+           renderItem={renderItem}
+           keyExtractor={keyExtractor}
+-          numColumns={GRID_COLUMNS}
++          numColumns={gridColumns}
+           contentContainerStyle={styles.gridContent}
+           columnWrapperStyle={styles.gridRow}
+           getItemLayout={(_: unknown, index: number) => ({
+-            length: EMOJI_SIZE + 8,
+-            offset: (EMOJI_SIZE + 8) * Math.floor(index / GRID_COLUMNS),
++            length: rowHeight,
++            offset: rowHeight * Math.floor(index / gridColumns),
+             index,
+           })}
+           initialNumToRender={40}
+@@ -450,7 +463,7 @@ const styles = StyleSheet.create({
+     flex: 1,
+   },
+   gridContent: {
+-    padding: 8,
++    padding: GRID_PADDING,
+   },
+   loadingContainer: {
+     flex: 1,
+@@ -461,7 +474,6 @@ const styles = StyleSheet.create({
+     justifyContent: "flex-start",
+   },
+   emojiCell: {
+-    width: `${100 / GRID_COLUMNS}%`,
+     aspectRatio: 1,
+     alignItems: "center",
+     justifyContent: "center",

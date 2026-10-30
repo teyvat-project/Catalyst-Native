@@ -214,6 +214,7 @@ packageExtensionsChecksum: sha256-MAz1kyuO3px3+fcbXoxIe/8bB41Q9QpElHhNNAWOov8=
 
 patchedDependencies:
   '@likashefqet/react-native-image-zoom': 7fe39025924f852ab1e8fc75a6ea7d7b6d566a9168f83e181c9a954458f77221
+  '@natsuneko-laboratory/react-native-emoji-verse@0.1.0': 9a586bc24e854442a741909beb942352eb57a28d3da37002e704bf47f33fe6f7
   react-native-config@1.7.2: 5eaa2c9d6d22c492d2357f4c77584d57dffdf7d3980c04c5c29dc8a6fb292169
   react-native-image-crop-picker@0.51.1: cd866b1ea81ab83baf37d0eaaad198db237089e37a1200b542626cf002a4c26b
 
@@ -432,7 +433,7 @@ importers:
         version: link:../../packages/carousel-viewer
       '@natsuneko-laboratory/react-native-emoji-verse':
         specifier: 'catalog:'
-        version: 0.1.0(76808c07d4e823bfeeb2ea0f2d44b9da)
+        version: 0.1.0(patch_hash=9a586bc24e854442a741909beb942352eb57a28d3da37002e704bf47f33fe6f7)(76808c07d4e823bfeeb2ea0f2d44b9da)
       '@natsuneko-laboratory/react-native-twitter-text':
         specifier: 'catalog:'
         version: 0.1.0(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.1.0(supports-color@8.1.1)(typescript@6.0.3))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
@@ -13653,7 +13654,7 @@ snapshots:
     optionalDependencies:
       react-native-macos: 0.81.9(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.0.0(supports-color@8.1.1)(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react-native@0.81.6(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.0.0(supports-color@8.1.1)(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.1.4)(supports-color@8.1.1))(react@19.1.4)(supports-color@8.1.1)
 
-  '@natsuneko-laboratory/react-native-emoji-verse@0.1.0(76808c07d4e823bfeeb2ea0f2d44b9da)':
+  '@natsuneko-laboratory/react-native-emoji-verse@0.1.0(patch_hash=9a586bc24e854442a741909beb942352eb57a28d3da37002e704bf47f33fe6f7)(76808c07d4e823bfeeb2ea0f2d44b9da)':
     dependencies:
       lucide-react-native: 1.45.0(react-native-svg@15.16.0(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.1.0(supports-color@8.1.1)(typescript@6.0.3))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.1.0(supports-color@8.1.1)(typescript@6.0.3))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
       react: 19.3.0
