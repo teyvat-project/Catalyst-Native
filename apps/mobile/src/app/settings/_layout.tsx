@@ -14,6 +14,7 @@ export default function SettingsLayout() {
         <View className="w-80 border-r border-light-divider dark:border-dark-divider">
           <CatalystAppHeader
             compact
+            sideInsets={false}
             title="設定とプライバシー"
             canGoBack
             onBack={() => router.dismissTo("/(drawer)/(tabs)")}
