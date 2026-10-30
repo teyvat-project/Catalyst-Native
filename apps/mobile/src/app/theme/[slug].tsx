@@ -45,7 +45,7 @@ const ThemeHeader = ({ theme }: { theme: CatalystWeeklyTheme }) => {
         <UniImage
           source={{ uri: getCdnUrl({ src: theme.bannerUrl ?? theme.generatedBannerUrl, variant: "header", width: 1500 }) }}
           className="w-full"
-          // 画像は 1500:500 = 3:1。横長の画面で画面を占めすぎないよう、高さは画面の 30% までにする
+          // お題のバナーは 1200:400 = 3:1。横長の画面で画面を占めすぎないよう、高さは画面の 30% までにする
           style={{ height: headerHeight }}
           contentFit="cover"
         />
