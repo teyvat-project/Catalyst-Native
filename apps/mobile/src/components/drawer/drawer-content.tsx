@@ -245,7 +245,8 @@ export const DrawerContent = ({ navigation }: Props) => {
   }, [account?.user.screenName, client.catalyst]);
 
   return (
-    <SafeAreaView className="flex-1 bg-light-background dark:bg-dark-surface">
+    // ドロワーは画面の左に出るので、右のセーフエリア (iPhone Duo のステータス表示など) は避けなくていい
+    <SafeAreaView edges={["top", "bottom", "left"]} className="flex-1 bg-light-background dark:bg-dark-surface">
       {account?.user.profile != null ? (
         <DrawerProfileSection
           navigation={navigation}
