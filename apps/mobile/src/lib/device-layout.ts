@@ -1,10 +1,5 @@
 import { useMemo } from "react";
-import { Platform, useWindowDimensions } from "react-native";
-
-export const isIPad = Platform.OS === "ios" && Platform.isPad;
-export const POST_COLUMNS = isIPad ? 4 : 3;
-export const MEDIA_COLUMNS = isIPad ? 3 : 2;
-export const LIST_COLUMNS = isIPad ? 2 : 1;
+import { useWindowDimensions } from "react-native";
 
 /** 1 マスの目標幅から列数を求める。iPad かどうかではなく幅で決めるので、iPhone Duo の開閉にも追従する */
 export const columnsFor = (width: number, target: number, min: number) => Math.max(min, Math.floor(width / target));

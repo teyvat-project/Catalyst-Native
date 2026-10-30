@@ -1,14 +1,13 @@
 import { SettingsMenu } from "@/components/settings/menu";
 import { CatalystAppHeader, renderCatalystStackHeader, headerSurfaceOptions } from "@/components/navigation/app-header";
-import { isIPad } from "@/lib/device-layout";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { Stack, router } from "expo-router";
-import { View, useWindowDimensions } from "react-native";
+import { View } from "react-native";
 
 export const unstable_settings = { anchor: "index" };
 
 export default function SettingsLayout() {
-  const { width } = useWindowDimensions();
-  const split = isIPad && width >= 768;
+  const { isWide: split } = useDeviceLayout();
   return (
     <View className="flex-1 flex-row bg-light-background dark:bg-dark-background">
       {split && (

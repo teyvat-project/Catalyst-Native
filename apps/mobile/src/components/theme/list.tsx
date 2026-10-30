@@ -1,4 +1,4 @@
-import { LIST_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { CatalystEmptyState, CatalystSkeleton } from "@/components/design-system";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
 import { clientAtom } from "@/models/atoms/credential";
@@ -53,6 +53,7 @@ const EmptyState = ({ state }: Pick<Props, "state">) => (
 
 export const WeeklyThemeList = ({ state, query, ref }: Props) => {
   const client = useAtomValue(clientAtom);
+  const { listColumns } = useDeviceLayout();
   const [themes, setThemes] = useState<CatalystWeeklyTheme[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -161,7 +162,7 @@ export const WeeklyThemeList = ({ state, query, ref }: Props) => {
 
   return (
     <FlashList
-      numColumns={LIST_COLUMNS}
+      numColumns={listColumns}
       ref={list}
       data={visibleThemes}
       keyExtractor={(item) => item.slug}

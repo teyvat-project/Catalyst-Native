@@ -1,4 +1,4 @@
-import { LIST_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { ContestCard } from "@/components/contest/card";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
 import { clientAtom } from "@/models/atoms/credential";
@@ -21,6 +21,7 @@ type Props = {
 
 export const ContestList = ({ states, query, ref }: Props) => {
   const client = useAtomValue(clientAtom);
+  const { listColumns } = useDeviceLayout();
   const [contests, setContests] = useState<CatalystContest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const list = useRef<FlashListRef<CatalystContest>>(null);
@@ -64,7 +65,7 @@ export const ContestList = ({ states, query, ref }: Props) => {
 
   return (
     <FlashList
-      numColumns={LIST_COLUMNS}
+      numColumns={listColumns}
       ref={list}
       data={contests}
       keyExtractor={(w) => w.slug}
