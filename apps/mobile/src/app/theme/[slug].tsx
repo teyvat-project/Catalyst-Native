@@ -12,6 +12,7 @@ import { TimelineBase, type TimelineStatusItem } from "@/components/timeline/bas
 import { Markdown } from "@/components/ui/markdown";
 import { useAsyncOneTimeEffect } from "@/hooks/use-async-one-time-effect";
 import { abs } from "@/lib/dayjs";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { getCdnUrl } from "@/lib/media";
 import { clientAtom, credentialAtom } from "@/models/atoms/credential";
 import { openUrlWithBrowser } from "@/models/browser-settings";
@@ -34,6 +35,7 @@ const UniLink = withUniwind(Link);
 
 const ThemeHeader = ({ theme }: { theme: CatalystWeeklyTheme }) => {
   const credential = useAtomValue(credentialAtom);
+  const { headerHeight } = useDeviceLayout();
   const router = useRouter();
   const canCompose = theme.state === "open" && !!credential.accessToken;
 
@@ -42,7 +44,9 @@ const ThemeHeader = ({ theme }: { theme: CatalystWeeklyTheme }) => {
       <CatalystMediaFrame>
         <UniImage
           source={{ uri: getCdnUrl({ src: theme.bannerUrl ?? theme.generatedBannerUrl, variant: "header", width: 1500 }) }}
-          className="h-40 w-full"
+          className="w-full"
+          // 画像は 1500:500 = 3:1。横長の画面で画面を占めすぎないよう、高さは画面の 30% までにする
+          style={{ height: headerHeight }}
           contentFit="cover"
         />
       </CatalystMediaFrame>
