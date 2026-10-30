@@ -9,7 +9,6 @@ patchedDependencies:
   "@likashefqet/react-native-image-zoom": patches/@likashefqet__react-native-image-zoom.patch
   react-native-image-crop-picker@0.51.1: patches/react-native-image-crop-picker@0.51.1.patch
   react-native-config@1.7.2: patches/react-native-config@1.7.2.patch
-  "@natsuneko-laboratory/react-native-emoji-verse@0.1.0": patches/@natsuneko-laboratory__react-native-emoji-verse@0.1.0.patch
 
 # @react-native/jest-preset は require.resolve("react-native") するが依存に宣言していないため、
 # isolated リンカーだと別アプリ (apps/macos 等) の react-native が解決されてしまう
@@ -27,7 +26,7 @@ catalog:
   "@natsuneko-laboratory/react-native-credential-store": 0.1.0-alpha.3
   "@natsuneko-laboratory/react-native-desktop-navigation": 0.1.0-alpha.20
   "@natsuneko-laboratory/react-native-desktop-window-size": 0.1.2
-  "@natsuneko-laboratory/react-native-emoji-verse": 0.1.0
+  "@natsuneko-laboratory/react-native-emoji-verse": 0.1.1
   "@natsuneko-laboratory/react-native-twitter-text": 0.1.0
   "@natsuneko-laboratory/react-native-webcrypto-digest": 0.2.0
   clsx: 2.1.1
