@@ -1,4 +1,4 @@
-import { LIST_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
 import { clientAtom } from "@/models/atoms/credential";
 import type { EgeriaUser } from "@/models/sdk-types";
@@ -20,6 +20,7 @@ type Props = {
 
 export const UserList = ({ query, ref }: Props) => {
   const client = useAtomValue(clientAtom);
+  const { listColumns } = useDeviceLayout();
   const [users, setUsers] = useState<EgeriaUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const list = useRef<FlashListRef<EgeriaUser>>(null);
@@ -53,7 +54,7 @@ export const UserList = ({ query, ref }: Props) => {
 
   return (
     <FlashList
-      numColumns={LIST_COLUMNS}
+      numColumns={listColumns}
       ref={list}
       data={users}
       keyExtractor={(w) => w.id}

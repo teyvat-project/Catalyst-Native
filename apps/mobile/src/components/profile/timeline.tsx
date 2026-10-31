@@ -1,4 +1,4 @@
-import { POST_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { useAsyncOneTimeEffect } from "@/hooks/use-async-one-time-effect";
 import { MediaBadges } from "@/components/ui/media-badges";
 import { getCdnUrl } from "@/lib/media";
@@ -13,7 +13,6 @@ import React, { memo, useCallback, useImperativeHandle, useRef, useState } from 
 import { ActivityIndicator, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { ProfileTimelinePlaceholder } from "./placeholder";
 
-const COLUMNS = POST_COLUMNS;
 const GAP = 1;
 
 type Props = {
@@ -89,7 +88,8 @@ export const UserTimeline = memo(
   React.forwardRef<UserTimelineHandle, Props>(({ user }, ref) => {
     const client = useAtomValue(clientAtom);
     const { width: screenWidth } = useWindowDimensions();
-    const cellSize = (screenWidth - GAP * (COLUMNS - 1)) / COLUMNS;
+    const { postColumns: columns } = useDeviceLayout();
+    const cellSize = (screenWidth - GAP * (columns - 1)) / columns;
     const [items, setItems] = useState<CatalystStatus[]>([]);
     const sets = useRef<Set<string>>(new Set());
     const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -165,8 +165,8 @@ export const UserTimeline = memo(
     useAsyncOneTimeEffect(fetchItems);
 
     const rows: CatalystStatus[][] = [];
-    for (let i = 0; i < items.length; i += COLUMNS) {
-      rows.push(items.slice(i, i + COLUMNS));
+    for (let i = 0; i < items.length; i += columns) {
+      rows.push(items.slice(i, i + columns));
     }
 
     if (isInitialLoading && items.length === 0) {

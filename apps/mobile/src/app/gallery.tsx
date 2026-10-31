@@ -1,4 +1,4 @@
-import { MEDIA_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { ProfileGalleryPlaceholder } from "@/components/profile/placeholder";
 import { useAsyncOneTimeEffect } from "@/hooks/use-async-one-time-effect";
 import { getCdnUrl } from "@/lib/media";
@@ -12,7 +12,6 @@ import { useAtomValue } from "jotai";
 import React, { memo, useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, View, useWindowDimensions } from "react-native";
 
-const COLUMNS = MEDIA_COLUMNS;
 const GAP = 2;
 
 const GalleryCell = memo(({ status, columnWidth }: { status: CatalystStatus; columnWidth: number }) => {
@@ -55,7 +54,8 @@ GalleryCell.displayName = "GalleryCell";
 export default function GalleryScreen() {
   const client = useAtomValue(clientAtom);
   const { width: screenWidth } = useWindowDimensions();
-  const columnWidth = (screenWidth - GAP * (COLUMNS - 1)) / COLUMNS;
+  const { mediaColumns: columns } = useDeviceLayout();
+  const columnWidth = (screenWidth - GAP * (columns - 1)) / columns;
   const [items, setItems] = useState<CatalystStatus[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -133,7 +133,7 @@ export default function GalleryScreen() {
         keyExtractor={(w) => w.id}
         renderItem={({ item }) => <GalleryCell key={item.id} status={item} columnWidth={columnWidth} />}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
-        numColumns={COLUMNS}
+        numColumns={columns}
         masonry
         onEndReached={onLoadMore}
         onEndReachedThreshold={0.75}

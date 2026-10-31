@@ -6,7 +6,8 @@ import {
   CatalystText,
 } from "@/components/design-system";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
-import { MEDIA_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout, widthClassFor } from "@/lib/device-layout";
+import { cn } from "@/lib/utils";
 import { clientAtom } from "@/models/atoms/credential";
 import { EPICLESE_ITEM_TYPE_LABELS, type EpicleseItemType } from "@/models/epiclese";
 import type { EpicleseItemResponse } from "@natsuneko-laboratory/catalyst-sdk";
@@ -69,11 +70,12 @@ const ItemCard = memo(({ item, statusCount }: ItemWithCount) => {
 ItemCard.displayName = "ItemCard";
 
 const ItemListPlaceholder = () => {
+  const { mediaColumns } = useDeviceLayout();
   return (
     <View accessibilityLabel="アイテムを読み込み中" accessibilityRole="progressbar" className="flex-row flex-wrap px-1.5">
-      {/* 読み込み後の一覧と同じ列数にする (iPad は 3 列) */}
-      {Array.from({ length: MEDIA_COLUMNS * 2 }, (_, index) => (
-        <View key={index} className={MEDIA_COLUMNS === 3 ? "w-1/3 p-1.5" : "w-1/2 p-1.5"}>
+      {/* 読み込み後の一覧と同じ列数にする */}
+      {Array.from({ length: mediaColumns * 2 }, (_, index) => (
+        <View key={index} className={cn(widthClassFor(mediaColumns), "p-1.5")}>
           <CatalystSkeleton className="aspect-square w-full rounded-xl" />
           <View className="gap-1.5 pt-2">
             <CatalystSkeleton className="h-5 w-16 rounded-full" />
@@ -103,6 +105,7 @@ type Props = {
 
 export const ItemList = ({ query, ref }: Props) => {
   const client = useAtomValue(clientAtom);
+  const { mediaColumns } = useDeviceLayout();
   const [type, setType] = useState<EpicleseItemType | null>(null);
   const [items, setItems] = useState<ItemWithCount[]>([]);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
@@ -201,7 +204,7 @@ export const ItemList = ({ query, ref }: Props) => {
     <>
       <FlashList
         ref={list}
-        numColumns={MEDIA_COLUMNS}
+        numColumns={mediaColumns}
         data={items}
         keyExtractor={(w) => w.item.id}
         renderItem={onRender}

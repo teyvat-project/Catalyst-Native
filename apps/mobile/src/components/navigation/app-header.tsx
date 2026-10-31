@@ -1,4 +1,5 @@
 import { CatalystText } from "@/components/design-system";
+import { topInsetFor } from "@/lib/device-layout";
 import { cn } from "@/lib/utils";
 import { useTheme } from "expo-router";
 import type { NativeStackHeaderProps } from "expo-router/build/react-navigation/native-stack/types";
@@ -21,6 +22,8 @@ type CatalystAppHeaderProps = {
   left?: React.ReactNode;
   onBack?: () => void;
   right?: React.ReactNode;
+  /** セーフエリアの左右を避けるか。設定画面の左のサイドバーのように、ステータス表示 (iPhone Duo では右上) まで届かない場所では false にする */
+  sideInsets?: boolean;
   title?: React.ReactNode;
 };
 
@@ -31,6 +34,7 @@ export const CatalystAppHeader = ({
   left,
   onBack,
   right,
+  sideInsets = true,
   title,
 }: CatalystAppHeaderProps) => {
   const insets = useSafeAreaInsets();
@@ -40,7 +44,12 @@ export const CatalystAppHeader = ({
   return (
     <View
       className="border-b border-light-divider bg-light-background dark:border-dark-divider dark:bg-dark-background border-b-transparent"
-      style={{ paddingTop: insets.top }}
+      testID="catalyst-app-header"
+      style={{
+        paddingTop: topInsetFor(insets.top),
+        paddingLeft: sideInsets ? insets.left : 0,
+        paddingRight: sideInsets ? insets.right : 0,
+      }}
     >
       <View className="h-[52px] flex-row items-center px-3">
         <View className={cn("items-start justify-center", !compact && "w-[112px]")}>

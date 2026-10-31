@@ -6,6 +6,7 @@ import {
   CatalystText,
 } from "@/components/design-system";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { getCdnUrl } from "@/lib/media";
 import { accountAtom } from "@/models/atoms/account";
 import { clientAtom } from "@/models/atoms/credential";
@@ -44,7 +45,8 @@ type ProfileBannerProps = {
 
 export const ProfileBanner = ({ user, scrollY }: ProfileBannerProps) => {
   const { width: screenWidth } = useWindowDimensions();
-  const bannerHeight = Math.max(136, screenWidth / 3);
+  const { headerHeight } = useDeviceLayout();
+  const bannerHeight = Math.max(136, headerHeight);
   const bannerTranslateY = scrollY.interpolate({
     inputRange: [0, bannerHeight],
     outputRange: [0, -bannerHeight],
@@ -93,7 +95,8 @@ export const ProfileBanner = ({ user, scrollY }: ProfileBannerProps) => {
 
 export const ProfileHeader = ({ user, relationships, tags, onUpdateRelationships, onLayout }: Props) => {
   const { width: screenWidth } = useWindowDimensions();
-  const bannerHeight = Math.max(136, screenWidth / 3);
+  const { headerHeight } = useDeviceLayout();
+  const bannerHeight = Math.max(136, headerHeight);
   const account = useAtomValue(accountAtom);
   const client = useAtomValue(clientAtom);
   const router = useRouter();

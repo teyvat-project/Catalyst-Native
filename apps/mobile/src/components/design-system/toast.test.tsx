@@ -6,6 +6,10 @@ jest.mock("lucide-react-native", () => {
   const { View } = require("react-native");
   return { Check: View, CircleAlert: View, Info: View, TriangleAlert: View, X: View };
 });
+// iPhone Duo を開いた状態と同じく、右にステータス表示の余白があるものとして描画する
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 84, bottom: 34, left: 0 }),
+}));
 
 describe("CatalystToastCard", () => {
   it.each(["success", "error", "info", "warning"] as const)(
@@ -34,6 +38,18 @@ describe("CatalystToastCard", () => {
     expect(onPress).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByLabelText("成功。保存しました"));
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it("上に出るときはセーフエリアの左右を避ける", async () => {
+    await render(<CatalystToastCard variant="info" text1="上" position="top" hide={jest.fn()} onPress={jest.fn()} />);
+    expect(screen.getByTestId("catalyst-toast-card")).toHaveStyle({ paddingLeft: 16, paddingRight: 100 });
+  });
+
+  it("下に出るときはセーフエリアの左右を足さない", async () => {
+    await render(
+      <CatalystToastCard variant="info" text1="下" position="bottom" hide={jest.fn()} onPress={jest.fn()} />,
+    );
+    expect(screen.getByTestId("catalyst-toast-card")).not.toHaveStyle({ paddingRight: 100 });
   });
 
   it("supports a description without a title", async () => {

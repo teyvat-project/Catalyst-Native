@@ -1,4 +1,4 @@
-import { LIST_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout, widthClassFor } from "@/lib/device-layout";
 import { UserCard } from "@/components/explorer/users/card";
 import { UserListPlaceholder } from "@/components/explorer/users/skeleton";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
@@ -16,6 +16,7 @@ type Props = {
 
 export const FollowList = ({ screenName, type }: Props) => {
   const client = useAtomValue(clientAtom);
+  const { listColumns } = useDeviceLayout();
   const [users, setUsers] = useState<CatalystFollowListItem[]>([]);
   const [nextPage, setNextPage] = useState<number | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -72,23 +73,23 @@ export const FollowList = ({ screenName, type }: Props) => {
 
   const rows = useMemo(() => {
     const result: CatalystFollowListItem[][] = [];
-    for (let index = 0; index < users.length; index += LIST_COLUMNS) {
-      result.push(users.slice(index, index + LIST_COLUMNS));
+    for (let index = 0; index < users.length; index += listColumns) {
+      result.push(users.slice(index, index + listColumns));
     }
     return result;
-  }, [users]);
+  }, [users, listColumns]);
 
   const renderItem = useCallback<ListRenderItem<CatalystFollowListItem[]>>(
     ({ item: row }) => (
       <View className="flex-row items-stretch">
         {row.map((item) => (
-          <View key={item.id} className={LIST_COLUMNS === 2 ? "w-1/2" : "w-full"}>
+          <View key={item.id} className={widthClassFor(listColumns)}>
             <UserCard className="flex-1 items-start" user={{ ...item, profileEmoji: item.profileEmoji ?? null }} />
           </View>
         ))}
       </View>
     ),
-    [],
+    [listColumns],
   );
 
   const renderFooter = useCallback(() => {

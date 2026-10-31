@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Gesture, GestureDetector, type GestureType } from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { runOnJS } from "react-native-reanimated";
 import { CatalystDivider } from "./divider";
 import { CatalystText } from "./text";
@@ -58,20 +59,38 @@ export function CatalystTabs({
 }: CatalystTabsProps) {
   const [activeIndex, setActiveIndex] = useState(defaultIndex);
   const reducedMotion = useReducedMotion();
-  const { width: screenWidth } = useWindowDimensions();
-  const [scrollX] = useState(() => new Animated.Value(defaultIndex * screenWidth));
+  const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  // ページとタブバーの幅は画面幅ではなく実際に描画された幅を使う。セーフエリアの余白や設定画面の左右分割で、
+  // 画面幅とずれることがあるため。最初の onLayout までは画面幅で代用する
+  const [pageWidth, setPageWidth] = useState(windowWidth);
+  const [barWidth, setBarWidth] = useState(windowWidth);
+  const [scrollX] = useState(() => new Animated.Value(defaultIndex * windowWidth));
   const flatListRef = useRef<FlatList<CatalystTab>>(null);
   const isScrollingProgrammatically = useRef(false);
   const tabBarRef = useRef<ScrollViewInstance>(null);
   const [measuredFrames, setMeasuredFrames] = useState<(TabFrame | undefined)[]>([]);
 
+  // iPhone Duo の開閉などで幅が変わると、スクロール位置は古い幅のまま残る。
+  // 選択中のタブを基準に、ページと下線の位置を新しい幅に合わせ直す
+  const activeIndexRef = useRef(activeIndex);
+  activeIndexRef.current = activeIndex;
+  const lastPageWidth = useRef(pageWidth);
+  useEffect(() => {
+    if (lastPageWidth.current === pageWidth) return;
+    lastPageWidth.current = pageWidth;
+    const offset = activeIndexRef.current * pageWidth;
+    flatListRef.current?.scrollToOffset({ offset, animated: false });
+    scrollX.setValue(offset);
+  }, [pageWidth, scrollX]);
+
   // 均等幅のときはタブの位置を計算で求め、横スクロールのときは実際に描画された位置を使う
-  const tabWidth = screenWidth / tabs.length;
+  const tabWidth = barWidth / tabs.length;
   const frames = scrollable ? measuredFrames : tabs.map((_, i) => ({ x: i * tabWidth, width: tabWidth }));
   const isMeasured = tabs.every((_, i) => frames[i]);
   const indicatorWidthOf = (i: number) => Math.min(64, Math.max(36, (frames[i]?.width ?? 0) * 0.44));
 
-  const inputRange = tabs.map((_, i) => i * screenWidth);
+  const inputRange = tabs.map((_, i) => i * pageWidth);
   const indicatorWidth = scrollX.interpolate({
     inputRange,
     outputRange: tabs.map((_, i) => indicatorWidthOf(i)),
@@ -91,16 +110,18 @@ export function CatalystTabs({
     if (!activeFrame) return;
     const margin = 48;
     const left = tabBarScrollX.current;
+    // タブバーはセーフエリアの左右を避けているので、見えている幅はページ幅より狭い
+    const viewportWidth = pageWidth - insets.left - insets.right;
     let x: number | null = null;
     if (activeFrame.x < left) {
       x = Math.max(0, activeFrame.x - margin);
-    } else if (activeFrame.x + activeFrame.width > left + screenWidth) {
-      x = activeFrame.x + activeFrame.width + margin - screenWidth;
+    } else if (activeFrame.x + activeFrame.width > left + viewportWidth) {
+      x = activeFrame.x + activeFrame.width + margin - viewportWidth;
     }
     if (x !== null) {
       tabBarRef.current?.scrollTo({ x, animated: !reducedMotion });
     }
-  }, [activeFrame, screenWidth, reducedMotion]);
+  }, [activeFrame, pageWidth, insets.left, insets.right, reducedMotion]);
 
   const handleTabPress = (index: number) => {
     isScrollingProgrammatically.current = true;
@@ -119,7 +140,7 @@ export function CatalystTabs({
       return;
     }
     const offsetX = e.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / screenWidth);
+    const index = Math.round(offsetX / pageWidth);
     const clampedIndex = Math.max(0, Math.min(index, tabs.length - 1));
     if (clampedIndex !== activeIndex) {
       setActiveIndex(clampedIndex);
@@ -155,11 +176,21 @@ export function CatalystTabs({
   );
 
   const renderItem: ListRenderItem<CatalystTab> = ({ item }) => (
-    <View style={{ width: screenWidth, flex: 1 }}>{renderScene(item)}</View>
+    <View style={{ width: pageWidth, flex: 1 }}>{renderScene(item)}</View>
   );
 
   const tabBar = (
-    <View className="relative flex-row">
+    <View
+      className="relative flex-row"
+      onLayout={
+        scrollable
+          ? undefined
+          : (e) => {
+              const { width } = e.nativeEvent.layout;
+              if (width > 0) setBarWidth(width);
+            }
+      }
+    >
       {tabs.map((tab, index) => {
         const isActive = index === activeIndex;
         return (
@@ -209,9 +240,10 @@ export function CatalystTabs({
   return (
     <PagerGesturesContext.Provider value={pagerGestures}>
       <View className="flex-1">
+        {/* タブバーは画面上部に置かれるので、ステータス表示 (iPhone Duo では右上) と重ならないようセーフエリアの左右を避ける */}
         {scrollable ? (
           // 区切り線はスクロールさせず、画面幅いっぱいに引く
-          <View>
+          <View testID="catalyst-tabs-bar" style={{ paddingLeft: insets.left, paddingRight: insets.right }}>
             <CatalystDivider className="absolute bottom-0" />
             <ScrollView
               ref={tabBarRef}
@@ -226,33 +258,49 @@ export function CatalystTabs({
             </ScrollView>
           </View>
         ) : (
-          tabBar
+          <View testID="catalyst-tabs-bar" style={{ paddingLeft: insets.left, paddingRight: insets.right }}>{tabBar}</View>
         )}
 
-        <GestureDetector gesture={composedGesture}>
-          <AnimatedFlatList
-            ref={flatListRef}
-            data={tabs}
-            horizontal
-            pagingEnabled
-            scrollEnabled
-            bounces={false}
-            overScrollMode="never"
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.key}
-            renderItem={renderItem}
-            getItemLayout={(_, index) => ({ length: screenWidth, offset: screenWidth * index, index })}
-            initialScrollIndex={defaultIndex}
-            scrollEventThrottle={16}
-            onScroll={handleScroll}
-            onMomentumScrollEnd={handleMomentumScrollEnd}
-            // タブを押したスクロールで完了の通知が来ない場合に備え、次にユーザーが動かしたらフラグを下ろす
-            onScrollBeginDrag={() => {
-              isScrollingProgrammatically.current = false;
-            }}
-            className="flex-1"
-          />
-        </GestureDetector>
+        <View
+          testID="catalyst-tabs-pager"
+          className="flex-1"
+          onLayout={(e) => {
+            // 幅 0 の layout (表示前など) を使うと、ページ位置の計算が 0 除算になる
+            const { width } = e.nativeEvent.layout;
+            if (width > 0) setPageWidth(width);
+          }}
+        >
+          <GestureDetector gesture={composedGesture}>
+            <AnimatedFlatList
+              ref={flatListRef}
+              testID="catalyst-tabs-list"
+              data={tabs}
+              extraData={pageWidth}
+              horizontal
+              pagingEnabled
+              scrollEnabled
+              bounces={false}
+              overScrollMode="never"
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => item.key}
+              renderItem={renderItem}
+              getItemLayout={(_, index) => ({
+                length: pageWidth,
+                offset: pageWidth * index,
+                index,
+              })}
+              initialScrollIndex={defaultIndex}
+              scrollEventThrottle={16}
+              onScroll={handleScroll}
+              onMomentumScrollEnd={handleMomentumScrollEnd}
+              // タブを押したスクロールで完了の通知が来ない場合に備え、次にユーザーが動かしたらフラグを下ろす
+              onScrollBeginDrag={() => {
+                isScrollingProgrammatically.current = false;
+              }}
+              className="flex-1"
+            />
+          </GestureDetector>
+        </View>
       </View>
     </PagerGesturesContext.Provider>
   );

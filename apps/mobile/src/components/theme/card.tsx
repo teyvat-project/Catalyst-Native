@@ -38,7 +38,7 @@ export const WeeklyThemeCard = ({ theme }: Props) => {
       <CatalystMediaFrame>
         <UniImage
           source={{ uri: getCdnUrl({ src: theme.bannerUrl ?? theme.generatedBannerUrl, variant: "header", width: 1500 }) }}
-          className="h-32 w-full"
+          className="aspect-[3/1] w-full"
           contentFit="cover"
         />
       </CatalystMediaFrame>

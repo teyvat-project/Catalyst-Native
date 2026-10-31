@@ -11,9 +11,11 @@ type Props = {
 };
 
 export const ProfileTabs = ({ activeIndex, tabs, onClickTab }: Props) => {
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  // 親にセーフエリアの余白が入ることがあるので、画面幅ではなく実際に描画された幅で割る
+  const [barWidth, setBarWidth] = useState(windowWidth);
   const [indicator] = useState(() => new Animated.Value(0));
-  const tabWidth = screenWidth / tabs.length;
+  const tabWidth = barWidth / tabs.length;
   const theme = useTheme();
   const isDarkMode = theme.dark;
 
@@ -35,7 +37,13 @@ export const ProfileTabs = ({ activeIndex, tabs, onClickTab }: Props) => {
   }, [activeIndex, indicator, tabWidth]);
 
   return (
-    <View className="flex-row bg-light-background dark:bg-dark-surface">
+    <View
+      className="flex-1 flex-row bg-light-background dark:bg-dark-surface"
+      onLayout={(e) => {
+        const { width } = e.nativeEvent.layout;
+        if (width > 0) setBarWidth(width);
+      }}
+    >
       {tabs.map((tab, i) => {
         const isActive = i === activeIndex;
 

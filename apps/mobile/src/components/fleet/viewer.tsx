@@ -437,7 +437,11 @@ export const FleetViewer = ({ username, usernames, visible, onClose, onMarkRead 
 
         {/* Header overlay: progress bars + user info */}
         {!isLoading && fleets.length > 0 && (
-          <View className="absolute left-0 right-0 z-10" style={{ top: insets.top + 8 }} pointerEvents="none">
+          <View
+            className="absolute z-10"
+            style={{ top: insets.top + 8, left: insets.left, right: insets.right }}
+            pointerEvents="none"
+          >
             <View className="flex-row gap-1 px-3 pb-2">
               {fleets.map((fleet, i) => (
                 <ProgressBar
@@ -471,8 +475,8 @@ export const FleetViewer = ({ username, usernames, visible, onClose, onMarkRead 
           <Pressable
             accessibilityLabel={isMyFleet ? "Fleet を削除" : "Fleet を報告"}
             onPress={isMyFleet ? handleDelete : handleReport}
-            className="absolute right-24 z-20 w-8 h-8 justify-center items-center"
-            style={{ top: insets.top + 48 }}
+            className="absolute z-20 w-8 h-8 justify-center items-center"
+            style={{ top: insets.top + 48, right: insets.right + 96 }}
             hitSlop={8}
           >
             <UniEllipsis size={20} className="text-white" />
@@ -485,11 +489,11 @@ export const FleetViewer = ({ username, usernames, visible, onClose, onMarkRead 
             onPress={isMyFleet ? handleOpenReactionsList : handleToggleReactionPanel}
             disabled={!isMyFleet && isReacting}
             className={cn(
-              "absolute right-14 z-20 w-8 h-8 justify-center items-center rounded-full",
+              "absolute z-20 w-8 h-8 justify-center items-center rounded-full",
               !isMyFleet && currentFleet.selfReaction && "bg-white/25",
               !isMyFleet && isReacting && "opacity-60",
             )}
-            style={{ top: insets.top + 48 }}
+            style={{ top: insets.top + 48, right: insets.right + 56 }}
             hitSlop={8}
           >
             {isMyFleet ? (
@@ -505,8 +509,8 @@ export const FleetViewer = ({ username, usernames, visible, onClose, onMarkRead 
         {/* Close button */}
         <Pressable
           onPress={onClose}
-          className="absolute right-4 z-20 w-8 h-8 justify-center items-center"
-          style={{ top: insets.top + 48 }}
+          className="absolute z-20 w-8 h-8 justify-center items-center"
+          style={{ top: insets.top + 48, right: insets.right + 16 }}
           hitSlop={16}
         >
           <Text className="text-white text-lg font-semibold">✕</Text>
@@ -514,7 +518,11 @@ export const FleetViewer = ({ username, usernames, visible, onClose, onMarkRead 
 
         {/* Reaction panel: 右上のトリガーボタンの下から右揃えで展開する（画面幅を超える場合は横スクロール） */}
         {isReactionPanelOpen && (
-          <View className="absolute left-4 right-4 z-20 items-end" style={{ top: insets.top + 88 }} pointerEvents="box-none">
+          <View
+            className="absolute z-20 items-end"
+            style={{ top: insets.top + 88, left: insets.left + 16, right: insets.right + 16 }}
+            pointerEvents="box-none"
+          >
             {reactionSymbols === null ? (
               <View className="rounded-full bg-black/60 px-4 py-3">
                 <ActivityIndicator colorClassName="accent-white" size="small" />

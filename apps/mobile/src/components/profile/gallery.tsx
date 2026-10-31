@@ -1,4 +1,4 @@
-import { MEDIA_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { useAsyncOneTimeEffect } from "@/hooks/use-async-one-time-effect";
 import { getCdnUrl } from "@/lib/media";
 import { merge } from "@/lib/merge";
@@ -11,7 +11,6 @@ import React, { memo, useCallback, useImperativeHandle, useRef, useState } from 
 import { ActivityIndicator, Pressable, View, useWindowDimensions } from "react-native";
 import { ProfileGalleryPlaceholder } from "./placeholder";
 
-const COLUMNS = MEDIA_COLUMNS;
 const GAP = 2;
 
 type Props = {
@@ -59,9 +58,9 @@ const GalleryCell = memo(({ status, columnWidth }: { status: CatalystStatus; col
 });
 GalleryCell.displayName = "GalleryCell";
 
-function distributeToColumns(items: CatalystStatus[], columnWidth: number): CatalystStatus[][] {
-  const columns: CatalystStatus[][] = Array.from({ length: COLUMNS }, () => []);
-  const heights = Array<number>(COLUMNS).fill(0);
+function distributeToColumns(items: CatalystStatus[], columnCount: number, columnWidth: number): CatalystStatus[][] {
+  const columns: CatalystStatus[][] = Array.from({ length: columnCount }, () => []);
+  const heights = Array<number>(columnCount).fill(0);
 
   for (const item of items) {
     const media = item.medias[0];
@@ -83,7 +82,8 @@ export const UserGallery = memo(
   React.forwardRef<UserGalleryHandle, Props>(({ user }, ref) => {
     const client = useAtomValue(clientAtom);
     const { width: screenWidth } = useWindowDimensions();
-    const columnWidth = (screenWidth - GAP * (COLUMNS - 1)) / COLUMNS;
+    const { mediaColumns: columnCount } = useDeviceLayout();
+    const columnWidth = (screenWidth - GAP * (columnCount - 1)) / columnCount;
     const [items, setItems] = useState<CatalystStatus[]>([]);
     const sets = useRef<Set<string>>(new Set());
     const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -142,7 +142,7 @@ export const UserGallery = memo(
       return <ProfileGalleryPlaceholder />;
     }
 
-    const columns = distributeToColumns(items, columnWidth);
+    const columns = distributeToColumns(items, columnCount, columnWidth);
 
     return (
       <View>

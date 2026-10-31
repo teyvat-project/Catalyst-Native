@@ -4,6 +4,7 @@ import { TabContent } from "@/components/profile/tab-content";
 import { ProfileTabs } from "@/components/profile/tabs";
 import { UserTimelineHandle } from "@/components/profile/timeline";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
+import { topInsetFor } from "@/lib/device-layout";
 import { accountAtom } from "@/models/atoms/account";
 import { clientAtom } from "@/models/atoms/credential";
 import type {
@@ -57,7 +58,9 @@ export function ProfilePage({ screenName, showBackButton = true }: Props) {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [isStickyTabBarInteractive, setIsStickyTabBarInteractive] =
     useState(false);
-  const NAV_BAR_HEIGHT = insets.top + 44;
+  // ProfileOverlay のナビバーと同じ高さ
+  const topInset = topInsetFor(insets.top);
+  const NAV_BAR_HEIGHT = topInset + 44;
   const isMyself = user?.id === account?.user.id;
   const tabContentRef = useRef<UserTimelineHandle>(null);
   const [relationships, setRelationships] =
@@ -280,7 +283,11 @@ export function ProfilePage({ screenName, showBackButton = true }: Props) {
 
         <View
           className="flex-row border-b border-light-divider bg-light-background dark:border-dark-divider dark:bg-dark-surface"
-          style={{ width: screenWidth }}
+          style={{
+            width: screenWidth,
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          }}
         >
           <ProfileTabs
             activeIndex={activeTab}
@@ -308,7 +315,7 @@ export function ProfilePage({ screenName, showBackButton = true }: Props) {
         pointerEvents="none"
         className="absolute left-0 right-0 items-center"
         style={{
-          top: insets.top + 8,
+          top: topInset + 8,
           opacity: isRefreshing ? 1 : pullIndicatorOpacity,
           transform: [{ scale: isRefreshing ? 1 : pullIndicatorScale }],
         }}
@@ -326,6 +333,8 @@ export function ProfilePage({ screenName, showBackButton = true }: Props) {
           top: NAV_BAR_HEIGHT,
           left: 0,
           width: screenWidth,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
           opacity: stickyTabBarOpacity,
         }}
         pointerEvents={isStickyTabBarInteractive ? "auto" : "none"}

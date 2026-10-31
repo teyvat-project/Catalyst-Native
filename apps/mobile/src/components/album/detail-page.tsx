@@ -1,4 +1,4 @@
-import { POST_COLUMNS, MEDIA_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout } from "@/lib/device-layout";
 import {
   CatalystActionSheetItem,
   CatalystAvatar,
@@ -71,9 +71,7 @@ const UniMoreHorizontal = withUniwind(MoreHorizontal);
 const UniPencil = withUniwind(Pencil);
 const UniSend = withUniwind(Send);
 
-const GRID_COLUMNS = POST_COLUMNS;
 const GRID_GAP = 1;
-const GALLERY_COLUMNS = MEDIA_COLUMNS;
 const GALLERY_GAP = 2;
 const COLLAPSED_DESCRIPTION_LINES = 6;
 const LOAD_MORE_THRESHOLD = 200;
@@ -290,9 +288,9 @@ const GalleryCell = memo(({ item, columnWidth }: { item: GalleryItem; columnWidt
 });
 GalleryCell.displayName = "GalleryCell";
 
-const distributeToColumns = (items: GalleryItem[], columnWidth: number): GalleryItem[][] => {
-  const columns: GalleryItem[][] = Array.from({ length: GALLERY_COLUMNS }, () => []);
-  const heights = Array<number>(GALLERY_COLUMNS).fill(0);
+const distributeToColumns = (items: GalleryItem[], columnCount: number, columnWidth: number): GalleryItem[][] => {
+  const columns: GalleryItem[][] = Array.from({ length: columnCount }, () => []);
+  const heights = Array<number>(columnCount).fill(0);
 
   for (const item of items) {
     const aspectRatio =
@@ -340,6 +338,7 @@ export const AlbumVisualContent = ({
   onlyReferencedMedia?: boolean;
 }) => {
   const { width: screenWidth } = useWindowDimensions();
+  const { postColumns: gridColumns, mediaColumns: galleryColumns } = useDeviceLayout();
   const [items, setItems] = useState<CatalystStatusV1_1[]>([]);
   // 最初の取得が始まる前に空の表示が一瞬出ないよう、読み込み中から始める
   const [isLoading, setIsLoading] = useState(true);
@@ -418,10 +417,10 @@ export const AlbumVisualContent = ({
   );
 
   if (mode === "grid") {
-    const cellSize = (screenWidth - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
+    const cellSize = (screenWidth - GRID_GAP * (gridColumns - 1)) / gridColumns;
     const rows: CatalystStatusV1_1[][] = [];
-    for (let i = 0; i < items.length; i += GRID_COLUMNS) {
-      rows.push(items.slice(i, i + GRID_COLUMNS));
+    for (let i = 0; i < items.length; i += gridColumns) {
+      rows.push(items.slice(i, i + gridColumns));
     }
 
     return (
@@ -458,9 +457,9 @@ export const AlbumVisualContent = ({
     );
   }
 
-  const columnWidth = (screenWidth - GALLERY_GAP * (GALLERY_COLUMNS - 1)) / GALLERY_COLUMNS;
+  const columnWidth = (screenWidth - GALLERY_GAP * (galleryColumns - 1)) / galleryColumns;
   const galleryItems = expandGalleryItems(items, onlyReferencedMedia);
-  const columns = distributeToColumns(galleryItems, columnWidth);
+  const columns = distributeToColumns(galleryItems, galleryColumns, columnWidth);
 
   return (
     <ScrollView

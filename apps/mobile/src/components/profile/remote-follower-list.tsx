@@ -1,4 +1,4 @@
-import { LIST_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout, widthClassFor } from "@/lib/device-layout";
 import { CatalystEmptyState } from "@/components/design-system";
 import { UserListPlaceholder } from "@/components/explorer/users/skeleton";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
@@ -20,6 +20,7 @@ type Props = {
 
 export const RemoteFollowerList = ({ screenName }: Props) => {
   const client = useAtomValue(clientAtom);
+  const { listColumns } = useDeviceLayout();
   const [actors, setActors] = useState<CatalystRemoteFollower[]>([]);
   const [nextPage, setNextPage] = useState<number | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -69,23 +70,23 @@ export const RemoteFollowerList = ({ screenName }: Props) => {
 
   const rows = useMemo(() => {
     const result: CatalystRemoteFollower[][] = [];
-    for (let index = 0; index < actors.length; index += LIST_COLUMNS) {
-      result.push(actors.slice(index, index + LIST_COLUMNS));
+    for (let index = 0; index < actors.length; index += listColumns) {
+      result.push(actors.slice(index, index + listColumns));
     }
     return result;
-  }, [actors]);
+  }, [actors, listColumns]);
 
   const renderItem = useCallback<ListRenderItem<CatalystRemoteFollower[]>>(
     ({ item: row }) => (
       <View className="flex-row items-stretch">
         {row.map((item) => (
-          <View key={item.id} className={LIST_COLUMNS === 2 ? "w-1/2" : "w-full"}>
+          <View key={item.id} className={widthClassFor(listColumns)}>
             <RemoteActorCard className="flex-1 items-start" actor={item} />
           </View>
         ))}
       </View>
     ),
-    [],
+    [listColumns],
   );
 
   if (isForbidden) {

@@ -1,4 +1,4 @@
-import { LIST_COLUMNS } from "@/lib/device-layout";
+import { useDeviceLayout } from "@/lib/device-layout";
 import { AlbumCard } from "@/components/album/card";
 import { ProfileAlbumsPlaceholder } from "@/components/profile/placeholder";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
@@ -23,6 +23,7 @@ type Props = {
 
 export const AlbumList = ({ query, ref }: Props) => {
   const client = useAtomValue(clientAtom);
+  const { listColumns } = useDeviceLayout();
   const [albums, setAlbums] = useState<CatalystAlbumOrSmartAlbum[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
@@ -97,7 +98,7 @@ export const AlbumList = ({ query, ref }: Props) => {
 
   return (
     <FlashList
-      numColumns={LIST_COLUMNS}
+      numColumns={listColumns}
       ref={list}
       data={albums}
       keyExtractor={(w) => w.id}

@@ -1,5 +1,6 @@
 import { CatalystActionSheetItem, CatalystDivider, CatalystText } from "@/components/design-system";
 import { ProfileEmoji } from "@/components/user/profile-emoji";
+import { topInsetFor } from "@/lib/device-layout";
 import { clientAtom } from "@/models/atoms/credential";
 import { CatalystRelationships, EgeriaUser } from "@/models/sdk-types";
 import {
@@ -35,7 +36,9 @@ export const ProfileOverlay = ({ user, relationships, scrollY, showBackButton = 
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const client = useAtomValue(clientAtom);
-  const overlayHeight = insets.top + 44;
+  // ステータスバーがなくても (iPhone Duo)、画面の丸い角に掛からないよう上を空ける
+  const topInset = topInsetFor(insets.top);
+  const overlayHeight = topInset + 44;
   const overlayOpacity = scrollY.interpolate({
     inputRange: [0, 32],
     outputRange: [0, 1],
@@ -84,7 +87,12 @@ export const ProfileOverlay = ({ user, relationships, scrollY, showBackButton = 
   return (
     <View
       className="absolute left-0 right-0 top-0 flex-row w-full"
-      style={{ height: overlayHeight, paddingTop: insets.top }}
+      style={{
+        height: overlayHeight,
+        paddingTop: topInset,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
     >
       <UniAnimatedView
         className="bg-light-background dark:bg-dark-surface"

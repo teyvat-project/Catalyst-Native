@@ -1,6 +1,34 @@
-import { Platform } from "react-native";
+import { useMemo } from "react";
+import { useWindowDimensions } from "react-native";
 
-export const isIPad = Platform.OS === "ios" && Platform.isPad;
-export const POST_COLUMNS = isIPad ? 4 : 3;
-export const MEDIA_COLUMNS = isIPad ? 3 : 2;
-export const LIST_COLUMNS = isIPad ? 2 : 1;
+/** 1 マスの目標幅から列数を求める。iPad かどうかではなく幅で決めるので、iPhone Duo の開閉にも追従する */
+export const columnsFor = (width: number, target: number, min: number) => Math.max(min, Math.floor(width / target));
+
+/** ヘッダー画像 (1500:500 = 3:1) の高さ。横長の画面で画面を占めすぎないよう、画面の高さの 30% までにする */
+export const headerHeightFor = (width: number, height: number) => Math.min(width / 3, height * 0.3);
+
+/**
+ * 画面上部に置く UI の上の余白。iPhone Duo はステータス表示が上端ではなく右上にあるので insets.top が 0 になり、
+ * そのままだと左上のアイコンが画面の丸い角に掛かる。上端にステータスバーがある端末では insets.top をそのまま使う
+ */
+export const topInsetFor = (top: number) => Math.max(top, 12);
+
+// Uniwind は組み立てたクラス名を生成しないので、完全なクラス名を並べておく
+const WIDTH_CLASSES = ["w-full", "w-1/2", "w-1/3", "w-1/4", "w-1/5", "w-1/6"];
+
+/** 列数に対応する幅のクラス。表にない 7 列以上は w-1/6 にする */
+export const widthClassFor = (columns: number) => WIDTH_CLASSES[Math.min(columns, WIDTH_CLASSES.length) - 1]!;
+
+export const useDeviceLayout = () => {
+  const { width, height } = useWindowDimensions();
+  return useMemo(
+    () => ({
+      postColumns: columnsFor(width, 200, 3),
+      mediaColumns: columnsFor(width, 270, 2),
+      listColumns: columnsFor(width, 400, 1),
+      isWide: width >= 768,
+      headerHeight: headerHeightFor(width, height),
+    }),
+    [width, height],
+  );
+};

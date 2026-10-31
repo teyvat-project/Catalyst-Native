@@ -37,15 +37,20 @@ const variants = {
 };
 
 type ToastVariant = keyof typeof variants;
-type CatalystToastCardProps = Pick<ToastConfigParams<unknown>, "text1" | "text2" | "onPress" | "hide"> & {
-  variant: ToastVariant;
-};
+type CatalystToastCardProps = Pick<ToastConfigParams<unknown>, "text1" | "text2" | "onPress" | "hide"> &
+  Partial<Pick<ToastConfigParams<unknown>, "position">> & {
+    variant: ToastVariant;
+  };
 
-export function CatalystToastCard({ variant, text1, text2, onPress, hide }: CatalystToastCardProps) {
+export function CatalystToastCard({ variant, text1, text2, onPress, hide, position }: CatalystToastCardProps) {
   const { Icon, background, foreground, label } = variants[variant];
+  const insets = useSafeAreaInsets();
+  // 上に出るトーストは、狭い画面だと端まで届いてステータス表示 (iPhone Duo では右上) と重なるので、セーフエリアの左右を避ける
+  const sideInsets =
+    position === "top" ? { paddingLeft: 16 + insets.left, paddingRight: 16 + insets.right } : undefined;
 
   return (
-    <View className="w-full max-w-lg px-4">
+    <View testID="catalyst-toast-card" className="w-full max-w-lg px-4" style={sideInsets}>
       <CatalystSurface
         variant="elevated"
         radius="lg"
