@@ -146,15 +146,17 @@ describe("restore", () => {
     expect(mockedCaptureException).not.toHaveBeenCalled();
   });
 
-  it("invalid_grant なら clearAsync を呼んで null を返す", async () => {
+  it("invalid_grant なら clearAsync を呼んで Sentry に送り、null を返す", async () => {
     mockedAuthenticationOptions.mockResolvedValue({ data: { challenge: "c" } });
     native.getAsync.mockResolvedValue("{}");
-    mockedGrant.mockRejectedValue(oauthError("invalid_grant"));
+    const error = oauthError("invalid_grant");
+    mockedGrant.mockRejectedValue(error);
 
     const result = await restore();
 
     expect(result).toBeNull();
     expect(native.clearAsync).toHaveBeenCalledTimes(1);
+    expect(mockedCaptureException).toHaveBeenCalledWith(error);
   });
 
   it("その他の失敗は Sentry に送って null を返す", async () => {
@@ -327,7 +329,7 @@ describe("ensureRegistered", () => {
 });
 
 describe("unregister", () => {
-  it("サーバーの DELETE、clearAsync、記録の削除を行う", async () => {
+  it("端末の鍵と記録を消してから、サーバーの DELETE を行う", async () => {
     mockedGetItem.mockResolvedValue(recordOf("cred-1", new Date()));
     const credential = createCredential();
     const api = credential.client.egeria.v1.restoreCredentials;
@@ -335,9 +337,42 @@ describe("unregister", () => {
 
     await unregister(credential);
 
-    expect(api.credentialId.delete).toHaveBeenCalledWith({ path: { credentialId: "cred-1" }, throwOnError: true });
+    expect(api.credentialId.delete).toHaveBeenCalledWith({
+      path: { credentialId: "cred-1" },
+      signal: expect.any(AbortSignal),
+      throwOnError: true,
+    });
     expect(native.clearAsync).toHaveBeenCalledTimes(1);
     expect(mockedDeleteItem).toHaveBeenCalledWith(RECORD_KEY);
+    const serverOrder = api.credentialId.delete.mock.invocationCallOrder[0];
+    expect(native.clearAsync.mock.invocationCallOrder[0]).toBeLessThan(serverOrder);
+    expect(mockedDeleteItem.mock.invocationCallOrder[0]).toBeLessThan(serverOrder);
+  });
+
+  it("サーバーが応答しなくても 5000 ms で打ち切り、端末側は消えている", async () => {
+    jest.useFakeTimers();
+    mockedGetItem.mockResolvedValue(recordOf("cred-1", new Date()));
+    const credential = createCredential();
+    // 応答しない通信。実際の SDK と同じく signal の abort で reject される
+    credential.client.egeria.v1.restoreCredentials.credentialId.delete.mockImplementation(
+      ({ signal }: { signal: AbortSignal }) =>
+        new Promise((_, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")))),
+    );
+
+    let done = false;
+    const promise = unregister(credential).then(() => {
+      done = true;
+    });
+
+    await jest.advanceTimersByTimeAsync(4999);
+    expect(done).toBe(false);
+    expect(native.clearAsync).toHaveBeenCalledTimes(1);
+    expect(mockedDeleteItem).toHaveBeenCalledWith(RECORD_KEY);
+
+    await jest.advanceTimersByTimeAsync(1);
+    await promise;
+    expect(done).toBe(true);
+    expect(mockedCaptureException).toHaveBeenCalledTimes(1);
   });
 
   it("サーバーの DELETE が失敗しても clearAsync と記録の削除は行う", async () => {

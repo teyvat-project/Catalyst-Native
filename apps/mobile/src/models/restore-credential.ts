@@ -7,6 +7,8 @@ import { CatalystRestoreCredential } from "./restore-credential-module";
 
 /** 復元全体のタイムアウト (ms)。起動を待たせないために短くしている */
 const RESTORE_TIMEOUT_MS = 5000;
+/** サインアウト時のサーバー側の鍵の削除を待つ上限 (ms)。サインアウトを止めないために設ける */
+const UNREGISTER_TIMEOUT_MS = 5000;
 /** 鍵を作り直す間隔。サーバー側の有効期限より十分短くしておく */
 const ROTATION_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
 /** 端末上の鍵の記録。SecureStore はバックアップされないので、新しい端末には存在しない */
@@ -67,9 +69,9 @@ export const restore = async (): Promise<{ accessToken: string; refreshToken: st
       if (e instanceof OAuthError && e.info?.error === "invalid_grant") {
         // 期限切れや取り消し済みの鍵。端末から消して、次回のログイン後に作り直す
         await module.clearAsync().catch((err) => Sentry.captureException(err));
-      } else {
-        Sentry.captureException(e);
       }
+
+      Sentry.captureException(e);
 
       return null;
     }
@@ -120,20 +122,32 @@ export const ensureRegistered = async (credential: CredentialStore.Credential): 
 };
 
 /**
- * サインアウト時に、サーバーと端末の鍵を消す。
- * サーバーへの削除が失敗しても、端末側は必ず消す。
+ * サインアウト時に、端末とサーバーの鍵を消す。
+ * 端末側を先に消し、サーバーへの削除はベストエフォート (最大 UNREGISTER_TIMEOUT_MS) にする。
+ * サーバーが応答しなくても、サインアウトは止まらない。
  */
 export const unregister = async (credential: CredentialStore.Credential): Promise<void> => {
   const module = getModule();
   if (!module) return;
 
   const record = await readRecord();
-  if (record) {
-    await credential.client.egeria.v1.restoreCredentials.credentialId
-      .delete({ path: { credentialId: record.credentialId }, throwOnError: true })
-      .catch((e) => Sentry.captureException(e));
-  }
 
   await module.clearAsync().catch((e) => Sentry.captureException(e));
   await SecureStore.deleteItemAsync(RECORD_KEY).catch((e) => Sentry.captureException(e));
+
+  if (!record) return;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UNREGISTER_TIMEOUT_MS);
+  try {
+    await credential.client.egeria.v1.restoreCredentials.credentialId.delete({
+      path: { credentialId: record.credentialId },
+      signal: controller.signal,
+      throwOnError: true,
+    });
+  } catch (e) {
+    Sentry.captureException(e);
+  } finally {
+    clearTimeout(timer);
+  }
 };
