@@ -1,8 +1,9 @@
 import type { EgeriaUser } from "@/models/sdk-types";
 import * as WebBrowser from "expo-web-browser";
 import { v4 } from "uuid";
-import { login, logout, tryRestore } from "./credential";
+import { login, logout, signOut, tryRestore } from "./credential";
 import * as CredentialStore from "./credential-store";
+import * as RestoreCredential from "./restore-credential";
 
 jest.mock("@natsuneko-laboratory/catalyst-sdk");
 jest.mock("expo-web-browser", () => ({
@@ -10,6 +11,12 @@ jest.mock("expo-web-browser", () => ({
 }));
 jest.mock("uuid", () => ({
   v4: jest.fn(),
+}));
+// automock だと実モジュール (expo のネイティブモジュール) を読み込んで警告が出るので、ファクトリで置き換える
+jest.mock("./restore-credential", () => ({
+  restore: jest.fn(),
+  ensureRegistered: jest.fn(),
+  unregister: jest.fn(),
 }));
 jest.mock("./credential-store", () => ({
   EMPTY_CREDENTIAL: { accessToken: "", refreshToken: "", client: {} },
@@ -21,6 +28,9 @@ jest.mock("./credential-store", () => ({
 const mockedGetCredential = CredentialStore.getCredential as jest.Mock;
 const mockedSaveCredential = CredentialStore.saveCredential as jest.Mock;
 const mockedClear = CredentialStore.clear as jest.Mock;
+const mockedRestore = RestoreCredential.restore as jest.Mock;
+const mockedEnsureRegistered = RestoreCredential.ensureRegistered as jest.Mock;
+const mockedUnregister = RestoreCredential.unregister as jest.Mock;
 const mockedOpenAuthSessionAsync = WebBrowser.openAuthSessionAsync as jest.Mock;
 const mockedV4 = v4 as jest.Mock;
 
@@ -124,6 +134,83 @@ describe("tryRestore", () => {
     expect(result.isLoggedIn).toBe(false);
     expect(client.egeria.v1.me.get).not.toHaveBeenCalled();
   });
+
+  it("トークンがなければ RestoreCredential.restore を試し、成功すれば保存してログイン済みで返す", async () => {
+    const emptyClient = createFakeClient();
+    const restoredClient = createFakeClient();
+    mockedGetCredential
+      .mockResolvedValueOnce({ accessToken: "", refreshToken: "", client: emptyClient })
+      .mockResolvedValueOnce({ accessToken: "ra", refreshToken: "rr", client: restoredClient });
+    mockedRestore.mockResolvedValue({ accessToken: "ra", refreshToken: "rr" });
+    restoredClient.egeria.v1.me.get.mockResolvedValue({ data: { user: USER } });
+
+    const result = await tryRestore();
+
+    expect(mockedSaveCredential).toHaveBeenCalledWith({ accessToken: "ra", refreshToken: "rr" });
+    expect(result.isLoggedIn).toBe(true);
+    expect(result.user).toEqual(USER);
+    expect(result.credential.accessToken).toBe("ra");
+    expect(mockedClear).not.toHaveBeenCalled();
+  });
+
+  it("トークンがなく restore も null なら未ログインで返し、鍵には触らない", async () => {
+    const client = createFakeClient();
+    mockedGetCredential.mockResolvedValue({ accessToken: "", refreshToken: "", client });
+    mockedRestore.mockResolvedValue(null);
+
+    const result = await tryRestore();
+
+    expect(result.isLoggedIn).toBe(false);
+    expect(mockedSaveCredential).not.toHaveBeenCalled();
+    expect(mockedUnregister).not.toHaveBeenCalled();
+  });
+
+  it("復元したトークンで me の取得に失敗して後片付けをしても、鍵には触らない", async () => {
+    const emptyClient = createFakeClient();
+    const restoredClient = createFakeClient();
+    mockedGetCredential
+      .mockResolvedValueOnce({ accessToken: "", refreshToken: "", client: emptyClient })
+      .mockResolvedValueOnce({ accessToken: "ra", refreshToken: "rr", client: restoredClient });
+    mockedRestore.mockResolvedValue({ accessToken: "ra", refreshToken: "rr" });
+    restoredClient.egeria.v1.me.get.mockRejectedValue(new Error("401"));
+    restoredClient.refresh.mockRejectedValue(new Error("refresh failed"));
+
+    const result = await tryRestore();
+
+    expect(result.isLoggedIn).toBe(false);
+    expect(mockedClear).toHaveBeenCalled();
+    expect(mockedUnregister).not.toHaveBeenCalled();
+  });
+
+  it("トークンがあれば restore を呼ばない", async () => {
+    const client = createFakeClient();
+    mockedGetCredential.mockResolvedValue({ accessToken: "a", refreshToken: "r", client });
+    client.egeria.v1.me.get.mockResolvedValue({ data: { user: USER } });
+
+    await tryRestore();
+
+    expect(mockedRestore).not.toHaveBeenCalled();
+  });
+
+  it("tryRestore が成功すると ensureRegistered を呼ぶ", async () => {
+    const client = createFakeClient();
+    const credential = { accessToken: "a", refreshToken: "r", client };
+    mockedGetCredential.mockResolvedValue(credential);
+    client.egeria.v1.me.get.mockResolvedValue({ data: { user: USER } });
+
+    await tryRestore();
+
+    expect(mockedEnsureRegistered).toHaveBeenCalledWith(credential);
+  });
+
+  it("未ログインで終わるときは ensureRegistered を呼ばない", async () => {
+    const client = createFakeClient();
+    mockedGetCredential.mockResolvedValue({ accessToken: "", refreshToken: "", client });
+
+    await tryRestore();
+
+    expect(mockedEnsureRegistered).not.toHaveBeenCalled();
+  });
 });
 
 describe("login", () => {
@@ -159,6 +246,7 @@ describe("login", () => {
     expect(result.isLoggedIn).toBe(true);
     expect(result.user).toEqual(USER);
     expect(result.credential.accessToken).toBe("new-a");
+    expect(mockedEnsureRegistered).toHaveBeenCalledWith(result.credential);
   });
 
   it("state が一致しない場合はトークン交換を行わず未ログインで終わる (CSRF対策)", async () => {
@@ -246,6 +334,7 @@ describe("login", () => {
 
     expect(mockedSaveCredential).toHaveBeenCalled();
     expect(result.isLoggedIn).toBe(false);
+    expect(mockedEnsureRegistered).not.toHaveBeenCalled();
   });
 });
 
@@ -254,5 +343,29 @@ describe("logout", () => {
     await logout();
 
     expect(mockedClear).toHaveBeenCalled();
+  });
+
+  it("鍵には触らない", async () => {
+    await logout();
+
+    expect(mockedUnregister).not.toHaveBeenCalled();
+  });
+});
+
+describe("signOut", () => {
+  it("unregister を呼んでからトークンを消す", async () => {
+    const order: string[] = [];
+    mockedUnregister.mockImplementation(async () => {
+      order.push("unregister");
+    });
+    mockedClear.mockImplementation(async () => {
+      order.push("clear");
+    });
+    const credential = { accessToken: "a", refreshToken: "r", client: createFakeClient() };
+
+    await signOut(credential as unknown as CredentialStore.Credential);
+
+    expect(mockedUnregister).toHaveBeenCalledWith(credential);
+    expect(order).toEqual(["unregister", "clear"]);
   });
 });

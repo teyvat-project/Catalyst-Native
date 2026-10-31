@@ -41,7 +41,7 @@ export default function DeleteAccountPage() {
       Alert.alert(
         "アカウントの削除を開始しました。投稿したデータが完全に消えるまで最大24時間かかることがあります",
       );
-      await Credential.logout();
+      await Credential.signOut(account.credential);
       setAccount(null);
       router.dismissAll();
     } catch {
