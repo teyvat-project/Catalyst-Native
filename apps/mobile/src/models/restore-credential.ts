@@ -1,6 +1,6 @@
 import { API_KEY } from "@/constants/apikey";
 import * as CredentialStore from "@/models/credential-store";
-import { OAuthError } from "@natsuneko-laboratory/catalyst-sdk";
+import { ApiError, OAuthError } from "@natsuneko-laboratory/catalyst-sdk";
 import * as Sentry from "@sentry/react-native";
 import * as SecureStore from "expo-secure-store";
 import { CatalystRestoreCredential } from "./restore-credential-module";
@@ -67,8 +67,10 @@ export const restore = async (): Promise<{ accessToken: string; refreshToken: st
       return { accessToken: token.accessToken, refreshToken: token.refreshToken };
     } catch (e) {
       if (e instanceof OAuthError && e.info?.error === "invalid_grant") {
-        // 期限切れや取り消し済みの鍵。端末から消して、次回のログイン後に作り直す
+        // 期限切れや取り消し済みの鍵。端末の鍵と記録を消して、次回のログイン後に作り直す。
+        // 記録を残すと、ensureRegistered が「登録済み」と見なして作り直さなくなる
         await module.clearAsync().catch((err) => Sentry.captureException(err));
+        await SecureStore.deleteItemAsync(RECORD_KEY).catch((err) => Sentry.captureException(err));
       }
 
       Sentry.captureException(e);
@@ -79,7 +81,10 @@ export const restore = async (): Promise<{ accessToken: string; refreshToken: st
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), RESTORE_TIMEOUT_MS);
+    timer = setTimeout(() => {
+      Sentry.captureMessage("Restore Credentials: restore timed out");
+      resolve(null);
+    }, RESTORE_TIMEOUT_MS);
   });
 
   try {
@@ -91,16 +96,22 @@ export const restore = async (): Promise<{ accessToken: string; refreshToken: st
 
 /**
  * 端末上の鍵がなければ (または古ければ) 作ってサーバーに登録する。
+ * force を指定すると、記録の新しさに関わらず作り直す (ログイン直後用)。
+ * 記録はユーザーと結び付いておらず、サーバー側で鍵が消えている場合もあるため、ログインでは必ず作り直す。
  * バックグラウンドで呼ぶ想定で、失敗しても例外は投げない (次回の起動でもう一度試す)。
  */
-export const ensureRegistered = async (credential: CredentialStore.Credential): Promise<void> => {
+export const ensureRegistered = async (
+  credential: CredentialStore.Credential,
+  { force = false }: { force?: boolean } = {},
+): Promise<void> => {
   const module = getModule();
   if (!module) return;
 
   try {
     const record = await readRecord();
-    // registeredAt が不正な日付なら NaN になり、作り直す側に倒れる
-    if (record && Date.now() - Date.parse(record.registeredAt) < ROTATION_INTERVAL_MS) return;
+    // registeredAt が不正な日付なら NaN、未来の日付なら age が負になり、どちらも作り直す側に倒れる
+    const age = record ? Date.now() - Date.parse(record.registeredAt) : NaN;
+    if (!force && age >= 0 && age < ROTATION_INTERVAL_MS) return;
 
     const api = credential.client.egeria.v1.restoreCredentials;
     const { data: options } = await api.registrationOptions.create({ throwOnError: true });
@@ -110,11 +121,14 @@ export const ensureRegistered = async (credential: CredentialStore.Credential): 
     const next: Record = { credentialId: data.credentialId, registeredAt: new Date().toISOString() };
     await SecureStore.setItemAsync(RECORD_KEY, JSON.stringify(next));
 
-    // 古い鍵の削除は後始末。失敗しても新しい記録は残す (古い鍵はサーバー側で期限切れになる)
+    // 古い鍵の削除は後始末。失敗しても新しい記録は残す (古い鍵はサーバー側で期限切れになる)。
+    // 404 は鍵がすでにない (別ユーザーの鍵、または取り消し済み) 場合で、想定内なので Sentry に送らない
     if (record) {
       await api.credentialId
         .delete({ path: { credentialId: record.credentialId }, throwOnError: true })
-        .catch((e) => Sentry.captureException(e));
+        .catch((e) => {
+          if (!(e instanceof ApiError && e.status === 404)) Sentry.captureException(e);
+        });
     }
   } catch (e) {
     Sentry.captureException(e);
@@ -125,8 +139,12 @@ export const ensureRegistered = async (credential: CredentialStore.Credential): 
  * サインアウト時に、端末とサーバーの鍵を消す。
  * 端末側を先に消し、サーバーへの削除はベストエフォート (最大 UNREGISTER_TIMEOUT_MS) にする。
  * サーバーが応答しなくても、サインアウトは止まらない。
+ * server: false なら端末側だけ消す (アカウント削除時は、サーバーが鍵ごと消しているため)。
  */
-export const unregister = async (credential: CredentialStore.Credential): Promise<void> => {
+export const unregister = async (
+  credential: CredentialStore.Credential,
+  { server = true }: { server?: boolean } = {},
+): Promise<void> => {
   const module = getModule();
   if (!module) return;
 
@@ -135,7 +153,7 @@ export const unregister = async (credential: CredentialStore.Credential): Promis
   await module.clearAsync().catch((e) => Sentry.captureException(e));
   await SecureStore.deleteItemAsync(RECORD_KEY).catch((e) => Sentry.captureException(e));
 
-  if (!record) return;
+  if (!server || !record) return;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UNREGISTER_TIMEOUT_MS);

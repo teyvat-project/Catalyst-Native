@@ -126,7 +126,8 @@ export const login = async (): Promise<AuthResult> => {
             accessToken: token.accessToken,
             refreshToken: token.refreshToken,
           };
-          void ensureRegistered(loggedIn);
+          // ログインでは記録の新しさに関わらず作り直す (別アカウントの鍵や、サーバーで消えた鍵が端末に残っていることがある)
+          void ensureRegistered(loggedIn, { force: true });
 
           return { credential: loggedIn, isLoggedIn: true, user: me.user };
         }
@@ -154,8 +155,12 @@ export const logout = async (): Promise<void> => {
 /**
  * ユーザー操作によるサインアウト。Restore Credentials の鍵を消してからトークンを消す。
  * unregister は失敗しても例外を投げず、端末側の鍵は必ず消える。
+ * server: false ならサーバー側の鍵の削除を行わない (アカウント削除後に使う)。
  */
-export const signOut = async (credential: CredentialStore.Credential): Promise<void> => {
-  await unregister(credential);
+export const signOut = async (
+  credential: CredentialStore.Credential,
+  options?: { server?: boolean },
+): Promise<void> => {
+  await unregister(credential, options);
   await logout();
 };

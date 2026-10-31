@@ -1,4 +1,4 @@
-import { OAuthError } from "@natsuneko-laboratory/catalyst-sdk";
+import { ApiError, OAuthError } from "@natsuneko-laboratory/catalyst-sdk";
 import * as Sentry from "@sentry/react-native";
 import * as SecureStore from "expo-secure-store";
 import * as CredentialStore from "./credential-store";
@@ -8,6 +8,13 @@ let mockModule: unknown;
 
 // automock だと OAuthError がコンストラクタとして使えず info も設定されないので、同じ形の最小実装に差し替える
 jest.mock("@natsuneko-laboratory/catalyst-sdk", () => ({
+  ApiError: class ApiError extends Error {
+    status: number;
+    constructor(status: number) {
+      super(`HTTP ${status}`);
+      this.status = status;
+    }
+  },
   OAuthError: class OAuthError extends Error {
     info?: { error: string };
     constructor(message: string, _kind: string, info?: { error: string }) {
@@ -31,6 +38,7 @@ jest.mock("expo-secure-store", () => ({
 }));
 jest.mock("@sentry/react-native", () => ({
   captureException: jest.fn(),
+  captureMessage: jest.fn(),
 }));
 jest.mock("./credential-store", () => ({
   EMPTY_CREDENTIAL: {
@@ -56,6 +64,7 @@ const mockedGetItem = SecureStore.getItemAsync as jest.Mock;
 const mockedSetItem = SecureStore.setItemAsync as jest.Mock;
 const mockedDeleteItem = SecureStore.deleteItemAsync as jest.Mock;
 const mockedCaptureException = Sentry.captureException as jest.Mock;
+const mockedCaptureMessage = Sentry.captureMessage as jest.Mock;
 
 const emptyClient = CredentialStore.EMPTY_CREDENTIAL.client as any;
 const mockedAuthenticationOptions = emptyClient.egeria.v1.restoreCredentials.authenticationOptions.create as jest.Mock;
@@ -84,6 +93,8 @@ const createCredential = (client = createFakeClient()) =>
   ({ accessToken: "a", refreshToken: "r", client }) as unknown as CredentialStore.Credential & {
     client: ReturnType<typeof createFakeClient>;
   };
+
+const apiError = (status: number) => new (ApiError as any)(status) as Error;
 
 const oauthError = (code: string) => new OAuthError(code, "invalidTokenResponse", { error: code });
 
@@ -156,7 +167,21 @@ describe("restore", () => {
 
     expect(result).toBeNull();
     expect(native.clearAsync).toHaveBeenCalledTimes(1);
+    expect(mockedDeleteItem).toHaveBeenCalledWith(RECORD_KEY);
     expect(mockedCaptureException).toHaveBeenCalledWith(error);
+  });
+
+  it("invalid_grant で記録の削除に失敗しても、Sentry に送って null を返す", async () => {
+    mockedAuthenticationOptions.mockResolvedValue({ data: { challenge: "c" } });
+    native.getAsync.mockResolvedValue("{}");
+    mockedGrant.mockRejectedValue(oauthError("invalid_grant"));
+    const failure = new Error("keychain");
+    mockedDeleteItem.mockRejectedValue(failure);
+
+    const result = await restore();
+
+    expect(result).toBeNull();
+    expect(mockedCaptureException).toHaveBeenCalledWith(failure);
   });
 
   it("その他の失敗は Sentry に送って null を返す", async () => {
@@ -168,6 +193,7 @@ describe("restore", () => {
     expect(result).toBeNull();
     expect(mockedCaptureException).toHaveBeenCalledWith(error);
     expect(native.clearAsync).not.toHaveBeenCalled();
+    expect(mockedDeleteItem).not.toHaveBeenCalled();
   });
 
   it("invalid_grant 以外の OAuthError は鍵を消さずに Sentry に送る", async () => {
@@ -194,10 +220,22 @@ describe("restore", () => {
 
     await jest.advanceTimersByTimeAsync(4999);
     expect(result).toBe("pending");
+    expect(mockedCaptureMessage).not.toHaveBeenCalled();
 
     await jest.advanceTimersByTimeAsync(1);
     await promise;
     expect(result).toBeNull();
+    expect(mockedCaptureMessage).toHaveBeenCalledTimes(1);
+    expect(mockedCaptureMessage).toHaveBeenCalledWith("Restore Credentials: restore timed out");
+  });
+
+  it("タイムアウト前に終われば captureMessage は呼ばない", async () => {
+    mockedAuthenticationOptions.mockResolvedValue({ data: { challenge: "c" } });
+    native.getAsync.mockResolvedValue(null);
+
+    await restore();
+
+    expect(mockedCaptureMessage).not.toHaveBeenCalled();
   });
 
   it("ネイティブモジュールが null なら何も呼ばず null", async () => {
@@ -267,18 +305,74 @@ describe("ensureRegistered", () => {
     );
   });
 
-  it("古い鍵の DELETE に失敗しても新しい記録は残る", async () => {
+  it("古い鍵の DELETE に失敗しても新しい記録は残り、Sentry に送る", async () => {
     const now = new Date("2026-11-01T00:00:00.000Z");
     jest.useFakeTimers().setSystemTime(now);
     mockedGetItem.mockResolvedValue(recordOf("old-id", new Date(now.getTime() - 31 * DAY)));
     const credential = createCredential();
     const api = stubRegistration(credential);
-    api.credentialId.delete.mockRejectedValue(new Error("404"));
+    const error = apiError(500);
+    api.credentialId.delete.mockRejectedValue(error);
 
     await expect(ensureRegistered(credential)).resolves.toBeUndefined();
 
     expect(mockedSetItem).toHaveBeenCalledTimes(1);
     expect(mockedDeleteItem).not.toHaveBeenCalled();
+    expect(mockedCaptureException).toHaveBeenCalledWith(error);
+  });
+
+  it("古い鍵の DELETE が 404 (すでにない) なら Sentry に送らない", async () => {
+    const now = new Date("2026-11-01T00:00:00.000Z");
+    jest.useFakeTimers().setSystemTime(now);
+    mockedGetItem.mockResolvedValue(recordOf("old-id", new Date(now.getTime() - 31 * DAY)));
+    const credential = createCredential();
+    const api = stubRegistration(credential);
+    api.credentialId.delete.mockRejectedValue(apiError(404));
+
+    await expect(ensureRegistered(credential)).resolves.toBeUndefined();
+
+    expect(mockedSetItem).toHaveBeenCalledTimes(1);
+    expect(mockedCaptureException).not.toHaveBeenCalled();
+  });
+
+  it("force なら記録が新しくても作り直し、古い credentialId を DELETE する (取り消し後の再ログイン・別アカウントのログイン)", async () => {
+    const now = new Date("2026-11-01T00:00:00.000Z");
+    jest.useFakeTimers().setSystemTime(now);
+    mockedGetItem.mockResolvedValue(recordOf("old-id", new Date(now.getTime() - 1 * DAY)));
+    const credential = createCredential();
+    const api = stubRegistration(credential);
+
+    await ensureRegistered(credential, { force: true });
+
+    expect(api.create).toHaveBeenCalledTimes(1);
+    expect(mockedSetItem).toHaveBeenCalledWith(
+      RECORD_KEY,
+      JSON.stringify({ credentialId: "new-id", registeredAt: now.toISOString() }),
+    );
+    expect(api.credentialId.delete).toHaveBeenCalledWith({ path: { credentialId: "old-id" }, throwOnError: true });
+  });
+
+  it("force でも記録がなければ DELETE せずに登録する", async () => {
+    const credential = createCredential();
+    const api = stubRegistration(credential);
+
+    await ensureRegistered(credential, { force: true });
+
+    expect(api.create).toHaveBeenCalledTimes(1);
+    expect(api.credentialId.delete).not.toHaveBeenCalled();
+  });
+
+  it("記録の registeredAt が未来 (時計のずれ) なら古いものとして作り直す", async () => {
+    const now = new Date("2026-11-01T00:00:00.000Z");
+    jest.useFakeTimers().setSystemTime(now);
+    mockedGetItem.mockResolvedValue(recordOf("old-id", new Date(now.getTime() + 1 * DAY)));
+    const credential = createCredential();
+    const api = stubRegistration(credential);
+
+    await ensureRegistered(credential);
+
+    expect(api.create).toHaveBeenCalledTimes(1);
+    expect(api.credentialId.delete).toHaveBeenCalledWith({ path: { credentialId: "old-id" }, throwOnError: true });
   });
 
   it("記録が 30 日未満なら何もしない", async () => {
@@ -405,6 +499,17 @@ describe("unregister", () => {
 
     await expect(unregister(credential)).resolves.toBeUndefined();
 
+    expect(mockedDeleteItem).toHaveBeenCalledWith(RECORD_KEY);
+  });
+
+  it("server: false ならサーバーの DELETE をせず、端末の鍵と記録だけ消す", async () => {
+    mockedGetItem.mockResolvedValue(recordOf("cred-1", new Date()));
+    const credential = createCredential();
+
+    await unregister(credential, { server: false });
+
+    expect(credential.client.egeria.v1.restoreCredentials.credentialId.delete).not.toHaveBeenCalled();
+    expect(native.clearAsync).toHaveBeenCalledTimes(1);
     expect(mockedDeleteItem).toHaveBeenCalledWith(RECORD_KEY);
   });
 
