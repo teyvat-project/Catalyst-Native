@@ -78,7 +78,7 @@ import { withUniwind } from "uniwind";
 import { ContestBanner } from "@/components/contest/banner";
 import { WeeklyThemeBanner } from "@/components/theme/banner";
 import "@/global.css";
-import { buildShareText, buildWorldShareText } from "@/lib/share";
+import { buildShareText, buildWorldShareText, withShareUtm } from "@/lib/share";
 import { fetchVRChatWorldAuthorName, isVRChatWorldId } from "@/lib/vrchat-world";
 import {
   BottomSheetBackdrop,
@@ -398,15 +398,25 @@ export default function StatusDetailsPage() {
           openUrlWithBrowser(statusUrl);
           break;
         case "copyUrl":
-          Clipboard.setStringAsync(statusUrl);
+          Clipboard.setStringAsync(withShareUtm(statusUrl, "status", "copy"));
           break;
         case "copyPost":
-          Clipboard.setStringAsync(buildShareText(status?.body ?? "", status?.user?.displayName ?? "", statusUrl));
+          Clipboard.setStringAsync(
+            buildShareText(
+              status?.body ?? "",
+              status?.user?.displayName ?? "",
+              withShareUtm(statusUrl, "status", "copy"),
+            ),
+          );
           break;
         case "share":
           // iOS でも URL を別枠 (url) で渡さず本文に含める。別枠にすると多くの共有先が URL だけを受け取り、本文が落ちる
           Share.share({
-            message: buildShareText(status?.body ?? "", status?.user?.displayName ?? "", statusUrl),
+            message: buildShareText(
+              status?.body ?? "",
+              status?.user?.displayName ?? "",
+              withShareUtm(statusUrl, "status", "share_sheet"),
+            ),
           });
           break;
       }
@@ -450,7 +460,12 @@ export default function StatusDetailsPage() {
 
     const world = { ...firstWorld, author };
     Share.share({
-      message: buildWorldShareText(status?.body ?? "", status?.user?.displayName ?? "", statusUrl, world),
+      message: buildWorldShareText(
+        status?.body ?? "",
+        status?.user?.displayName ?? "",
+        withShareUtm(statusUrl, "status", "share_sheet"),
+        world,
+      ),
     }).catch(() => {});
   }, [firstWorld, status, statusUrl]);
 

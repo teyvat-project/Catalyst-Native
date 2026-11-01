@@ -13,7 +13,7 @@ import { TimelineBase } from "@/components/timeline/base";
 import { useAsyncOneTimeEffect } from "@/hooks/use-async-one-time-effect";
 import { getCdnUrl } from "@/lib/media";
 import { merge } from "@/lib/merge";
-import { buildShareText } from "@/lib/share";
+import { buildShareText, withShareUtm } from "@/lib/share";
 import { accountAtom } from "@/models/atoms/account";
 import { openUrlWithBrowser } from "@/models/browser-settings";
 import type { CatalystAlbum, CatalystAlbumDisplayMode, CatalystStatusV1_1, Media } from "@/models/sdk-types";
@@ -511,6 +511,7 @@ export const AlbumDetailPage = ({ id, albumType }: Props) => {
     albumType === "album"
       ? `https://catalyst.natsuneko.com/album/${id}`
       : `https://catalyst.natsuneko.com/smart-album/${id}`;
+  const shareContent = albumType === "album" ? "album" : "smart_album";
 
   const showMenu = useCallback(() => {
     menuSheetRef.current?.present();
@@ -519,13 +520,14 @@ export const AlbumDetailPage = ({ id, albumType }: Props) => {
   const handleShare = useCallback(() => {
     menuSheetRef.current?.dismiss();
     // iOS でも URL は本文に含める (投稿の共有と同じ)
-    Share.share({ message: buildShareText(albumInfo?.title ?? "", albumInfo?.user?.displayName ?? "", albumUrl) });
-  }, [albumInfo, albumUrl]);
+    const url = withShareUtm(albumUrl, shareContent, "share_sheet");
+    Share.share({ message: buildShareText(albumInfo?.title ?? "", albumInfo?.user?.displayName ?? "", url) });
+  }, [albumInfo, albumUrl, shareContent]);
 
   const handleCopyUrl = useCallback(() => {
     menuSheetRef.current?.dismiss();
-    Clipboard.setStringAsync(albumUrl);
-  }, [albumUrl]);
+    Clipboard.setStringAsync(withShareUtm(albumUrl, shareContent, "copy"));
+  }, [albumUrl, shareContent]);
 
   const handleOpenBrowser = useCallback(() => {
     menuSheetRef.current?.dismiss();
