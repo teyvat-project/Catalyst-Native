@@ -13,6 +13,17 @@ export type CarouselIndicatorContext = {
   progress: SharedValue<number>;
   setIndex: (index: number) => void;
 };
+export type CarouselOverlayContext = {
+  index: number;
+  width: number;
+  height: number;
+  /**
+   * Fractional page position that follows the drag on the UI thread. Unlike the indicator's `progress`,
+   * it goes past the first and last page while the track overshoots or rubber-bands, so content drawn
+   * over an image can move exactly with it.
+   */
+  position: SharedValue<number>;
+};
 export type ImageGalleryProps = {
   images: GalleryImage[];
   initialIndex?: number;
@@ -42,7 +53,7 @@ export type ImageGalleryProps = {
   renderImage?: (image: GalleryImage, context: { mode: "carousel" | "detail"; index: number }) => ReactNode;
   style?: StyleProp<ViewStyle>;
   /** UI drawn over the carousel image viewport (not including the indicator). */
-  renderCarouselOverlay?: (context: { index: number; width: number; height: number }) => ReactNode;
+  renderCarouselOverlay?: (context: CarouselOverlayContext) => ReactNode;
   /** Replaces the default carousel indicator below the viewport. */
   renderCarouselIndicator?: (context: CarouselIndicatorContext) => ReactNode;
   renderOverlay?: (context: { index: number; close: () => void }) => ReactNode;
