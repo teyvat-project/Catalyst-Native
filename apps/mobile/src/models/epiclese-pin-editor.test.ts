@@ -106,11 +106,18 @@ describe("アイテム", () => {
     author: { id: "a-1", platformIdentifier: "usr_1", platform: null, name: "Author" },
   };
 
-  it("既存アイテムを選ぶと reference と表示用の値が入り、作者は外れる", () => {
+  it("既存アイテムを選ぶと reference と表示用の値が入り、作者はアイテムの作者になる", () => {
     const result = applyItem(pin({ x: 1, y: 2, order: 3, author: pinAuthor, name: "old" }), item);
 
-    expect(result).toEqual({ x: 1, y: 2, order: 3, reference: "i-1", type: "cloth", name: "Jacket" });
-    expect(result.author).toBeUndefined();
+    expect(result).toEqual({
+      x: 1,
+      y: 2,
+      order: 3,
+      reference: "i-1",
+      type: "cloth",
+      name: "Jacket",
+      author: { id: "a-1", name: "Author", platformIdentifier: "usr_1", platform: "" },
+    });
     expect(result.description).toBeUndefined();
     expect(result.externalUrl).toBeUndefined();
   });

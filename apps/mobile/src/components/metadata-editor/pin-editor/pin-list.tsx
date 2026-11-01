@@ -64,8 +64,10 @@ export const PinList = ({ pins, onSelect, onMoveUp, onMoveDown, onRemove }: Prop
                 <CatalystText variant="label" numberOfLines={1} tone={pin.name ? "default" : "muted"}>
                   {pin.name || "未設定のピン"}
                 </CatalystText>
-                <CatalystText variant="caption" tone="muted">
-                  {ITEM_TYPE_LABELS[pin.type]}
+                <CatalystText variant="caption" tone="muted" numberOfLines={1}>
+                  {pin.author?.name
+                    ? `${ITEM_TYPE_LABELS[pin.type]} · by ${pin.author.name}`
+                    : ITEM_TYPE_LABELS[pin.type]}
                 </CatalystText>
               </View>
               <RowAction label={`${number} 番のピンを上へ移動`} disabled={index === 0} onPress={() => onMoveUp(index)}>

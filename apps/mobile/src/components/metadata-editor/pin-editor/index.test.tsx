@@ -168,10 +168,20 @@ describe("PinEditorModal", () => {
     });
     expect(screen.getByText("衣装 · by Author")).toBeTruthy();
     await fireEvent.press(screen.getByText("Jacket"));
+    // ピン一覧にも作者が出る
+    expect(screen.getByText("衣装 · by Author")).toBeTruthy();
     await fireEvent.press(screen.getByText("完了"));
 
     expect(onDone.mock.calls[0][0]).toEqual([
-      { x: 5000, y: 5000, order: 0, reference: "i-1", type: "cloth", name: "Jacket" },
+      {
+        x: 5000,
+        y: 5000,
+        order: 0,
+        reference: "i-1",
+        type: "cloth",
+        name: "Jacket",
+        author: { id: "a-1", name: "Author", platformIdentifier: "usr_1", platform: "" },
+      },
     ]);
   });
 

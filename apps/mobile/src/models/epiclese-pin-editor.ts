@@ -97,7 +97,8 @@ export const applyItem = (pin: EditablePin, item: EpicleseItemResponse): Editabl
   name: item.name,
   description: item.description || undefined,
   externalUrl: item.externalUrl ?? undefined,
-  author: undefined,
+  // ピン一覧に作者を出すために持っておく。保存済みのピンと同じく、reference と一緒に送ってよい
+  author: toPinAuthor(item.author),
 });
 
 // 新しいアイテムの入力を変えたら、既存アイテムの選択は外す (Web 版と同じ)
