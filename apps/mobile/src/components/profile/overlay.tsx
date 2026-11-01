@@ -1,6 +1,7 @@
 import { CatalystActionSheetItem, CatalystDivider, CatalystText } from "@/components/design-system";
 import { ProfileEmoji } from "@/components/user/profile-emoji";
 import { topInsetFor } from "@/lib/device-layout";
+import { withShareUtm } from "@/lib/share";
 import { clientAtom } from "@/models/atoms/credential";
 import { CatalystRelationships, EgeriaUser } from "@/models/sdk-types";
 import {
@@ -53,7 +54,7 @@ export const ProfileOverlay = ({ user, relationships, scrollY, showBackButton = 
     sheet.current?.dismiss();
     // iOS でも URL は本文に含める (投稿の共有と同じ)
     Share.share({
-      message: `${user?.displayName} (@${user?.screenName})\n${url}`,
+      message: `${user?.displayName} (@${user?.screenName})\n${withShareUtm(url, "user", "share_sheet")}`,
     });
   }, [user, url]);
   const handleToggleBlock = useCallback(async () => {

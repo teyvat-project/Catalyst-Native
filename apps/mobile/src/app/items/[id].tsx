@@ -9,7 +9,7 @@ import {
 } from "@/components/design-system";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
 import { getCdnUrl } from "@/lib/media";
-import { buildShareText } from "@/lib/share";
+import { buildShareText, withShareUtm } from "@/lib/share";
 import { clientAtom } from "@/models/atoms/credential";
 import { openUrlWithBrowser } from "@/models/browser-settings";
 import { EPICLESE_ITEM_TYPE_LABELS } from "@/models/epiclese";
@@ -172,7 +172,7 @@ export default function ItemPage() {
   const share = useCallback(() => {
     if (!detail) return;
 
-    const url = getItemUrl(detail.item.id);
+    const url = withShareUtm(getItemUrl(detail.item.id), "item", "share_sheet");
     // iOS でも URL は本文に含める (投稿の共有と同じ)
     Share.share({ message: buildShareText(detail.item.name, detail.item.author.name, url) });
   }, [detail]);

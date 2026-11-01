@@ -1,5 +1,5 @@
 import twtr from "twitter-text";
-import { buildShareText, buildWorldShareText } from "./share";
+import { buildShareText, buildWorldShareText, withShareUtm } from "./share";
 
 const URL = "https://catalyst.natsuneko.com/status/123";
 const SITE_NAME = "Catalyst - VR-SNS 向け写真共有サービス";
@@ -129,5 +129,19 @@ describe("buildWorldShareText", () => {
 
       expect(result).not.toContain(WJ);
     });
+  });
+});
+
+describe("withShareUtm", () => {
+  it("utm_medium / utm_content / utm_source を付ける", () => {
+    expect(withShareUtm(URL, "status", "share_sheet")).toBe(
+      `${URL}?utm_medium=share&utm_content=status&utm_source=share_sheet`,
+    );
+  });
+
+  it("既存のクエリは残す", () => {
+    expect(withShareUtm(`${URL}?page=2`, "album", "copy")).toBe(
+      `${URL}?page=2&utm_medium=share&utm_content=album&utm_source=copy`,
+    );
   });
 });

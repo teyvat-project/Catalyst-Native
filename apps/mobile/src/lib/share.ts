@@ -47,6 +47,30 @@ export const buildShareText = (text: string, username: string, url: string): str
   return `${body}${author} | ${SITE_NAME}\n${url}`;
 };
 
+/**
+ * 共有したものの種類。utm_content に入れる。値は Web 版の `ShareContent` に合わせてある
+ * (プロフィールの共有は Web 版にないので user とした)
+ */
+export type ShareContent = "status" | "album" | "smart_album" | "item" | "user";
+
+/**
+ * 共有先。utm_source に入れる。OS の共有シートは共有先がわからないため share_sheet とする。
+ * URL や本文のコピーは Web 版と同じく copy とする
+ */
+export type ShareSource = "share_sheet" | "copy";
+
+/**
+ * 共有導線からの流入を計測できるよう、共有する URL に UTM パラメータを付ける。
+ * Web 版の `withShareUtm` + `withShareSource` と同じく utm_medium=share・utm_content・utm_source を付ける
+ */
+export const withShareUtm = (url: string, content: ShareContent, source: ShareSource): string => {
+  const u = new URL(url);
+  u.searchParams.set("utm_medium", "share");
+  u.searchParams.set("utm_content", content);
+  u.searchParams.set("utm_source", source);
+  return u.toString();
+};
+
 export type ShareWorld = {
   name: string;
   /** ワールド制作者。取れなかったときは null */
