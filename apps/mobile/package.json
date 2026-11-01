@@ -37,6 +37,11 @@
     "test": "jest",
     "typecheck": "tsc --noEmit"
   },
+  "reanimated": {
+    "staticFeatureFlags": {
+      "ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS": true
+    }
+  },
   "dependencies": {
     "@expo/config": "~58.0.6",
     "@expo/dom-webview": "^58.0.2",
