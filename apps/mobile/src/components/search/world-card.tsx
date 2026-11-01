@@ -1,5 +1,5 @@
 import { CatalystSurface, CatalystText } from "@/components/design-system";
-import { fetchVRChatWorldAuthorName, vrchatWorldThumbnailUrl } from "@/lib/vrchat-world";
+import type { WorldSite } from "@/lib/world-site";
 import { openUrlWithBrowser } from "@/models/browser-settings";
 import { Image } from "expo-image";
 import { ExternalLink, Globe } from "lucide-react-native";
@@ -13,31 +13,31 @@ const UniGlobe = withUniwind(Globe);
 
 type Props = {
   name: string;
-  platformIdentifier: string;
+  site: WorldSite;
 };
 
 /**
- * `platform:VRChat world:"..."` の検索結果の先頭に出すワールドカード。
- * Web 版 (VRChatWorldCard) に合わせ、サムネイルと作成者は miliastra から取って載せる。
+ * `platform:VRChat world:"..."` などの検索結果の先頭に出すワールドカード。
+ * Web 版 (WorldCard) に合わせ、サムネイルと作成者は miliastra から取って載せる。
  * ワールド名は Epiclese のものをそのまま出すので、miliastra の応答を待たずに表示できる。
  * サムネイルは読み込めなかったら地球儀に、作成者は取れなかったら空行にする。
  */
-export const SearchWorldCard = ({ name, platformIdentifier }: Props) => {
+export const SearchWorldCard = ({ name, site }: Props) => {
   const [authorName, setAuthorName] = useState<string | null>(null);
   const [isThumbnailBroken, setIsThumbnailBroken] = useState(false);
 
   useEffect(() => {
-    fetchVRChatWorldAuthorName(platformIdentifier).then(setAuthorName);
-  }, [platformIdentifier]);
+    site.fetchAuthorName().then(setAuthorName);
+  }, [site]);
 
   return (
     <View className="border-b border-light-divider bg-light-background p-3 dark:border-dark-divider dark:bg-dark-background">
       <CatalystSurface radius="lg" className="overflow-hidden border border-light-divider dark:border-dark-divider">
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel={`${name} を VRChat 公式サイトで開く`}
+          accessibilityLabel={`${name} を ${site.platformName} 公式サイトで開く`}
           className="flex-row active:opacity-75"
-          onPress={() => openUrlWithBrowser(`https://vrchat.com/home/world/${encodeURIComponent(platformIdentifier)}`)}
+          onPress={() => openUrlWithBrowser(site.url)}
         >
           {/* 読み込みの前後でカードがずれないよう、サムネイルの枠は最初から確保しておく。
               幅を高さから決めると、文字の折り返しと幅が互いに影響して最後の行がはみ出すので幅は固定にする */}
@@ -46,7 +46,7 @@ export const SearchWorldCard = ({ name, platformIdentifier }: Props) => {
               <UniGlobe size={24} className="text-light-text-subtle dark:text-dark-text-subtle" />
             ) : (
               <UniImage
-                source={vrchatWorldThumbnailUrl(platformIdentifier)}
+                source={site.thumbnailUrl}
                 contentFit="cover"
                 className="absolute inset-0"
                 onError={() => setIsThumbnailBroken(true)}
@@ -57,7 +57,7 @@ export const SearchWorldCard = ({ name, platformIdentifier }: Props) => {
             <View className="flex-row items-center gap-1.5">
               <UniGlobe size={14} className="text-light-text-muted dark:text-dark-text-muted" />
               <CatalystText variant="mono" tone="muted" className="text-[11px] font-medium tracking-wide uppercase">
-                VRChat ワールド
+                {site.platformName} ワールド
               </CatalystText>
             </View>
             <View>
@@ -71,7 +71,7 @@ export const SearchWorldCard = ({ name, platformIdentifier }: Props) => {
             </View>
             <View className="flex-row items-center justify-between gap-2">
               <CatalystText variant="caption" className="font-medium">
-                VRChat 公式サイトで開く
+                {site.platformName} 公式サイトで開く
               </CatalystText>
               <UniExternalLink size={14} className="text-light-text-muted dark:text-dark-text-muted" />
             </View>

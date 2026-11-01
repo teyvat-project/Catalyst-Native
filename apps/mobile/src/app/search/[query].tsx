@@ -1,11 +1,12 @@
 import { SearchWorldCard } from "@/components/search/world-card";
 import { TimelineBase } from "@/components/timeline/base";
 import { extractSearchQualifier } from "@/lib/search-query";
-import { isVRChatWorldId } from "@/lib/vrchat-world";
+import { getWorldSite } from "@/lib/world-site";
 import { clientAtom } from "@/models/atoms/credential";
+import type { EpicleseWorldResponse } from "@natsuneko-laboratory/catalyst-sdk";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 // expo-router の時点でデコード済みのことがあり、「100%」のように % を含む語をもう一度デコードすると例外になる。
 // そのときはデコード済みとみなしてそのまま使う
@@ -21,7 +22,7 @@ export default function SearchPage() {
   const params = useLocalSearchParams<{ query: string }>();
   const client = useAtomValue(clientAtom);
   const hashtag = safeDecode(params.query ?? "");
-  const [world, setWorld] = useState<{ name: string; platformIdentifier: string } | null>(null);
+  const [world, setWorld] = useState<EpicleseWorldResponse | null>(null);
   const fetcher = useCallback(
     async (since: string | null, until: string | null) => {
       if (!client || !hashtag) {
@@ -60,13 +61,11 @@ export default function SearchPage() {
       .catch(() => {});
   }, [client, hashtag]);
 
-  // 公式サイトの URL を組み立てられるのは今のところ VRChat のワールド (`wrld_` 始まり) だけ
+  // 公式サイトの URL を組み立てられるのは今のところ VRChat と XRift のワールドだけ
+  const site = useMemo(() => world && getWorldSite(world.platform?.name, world.platformIdentifier), [world]);
   const ListHeaderComponent = useCallback(
-    () =>
-      world && isVRChatWorldId(world.platformIdentifier) ? (
-        <SearchWorldCard name={world.name} platformIdentifier={world.platformIdentifier} />
-      ) : null,
-    [world],
+    () => (world && site ? <SearchWorldCard name={world.name} site={site} /> : null),
+    [world, site],
   );
 
   return (

@@ -10,6 +10,9 @@ describe("getWorldIdPlaceholder", () => {
     expect(getWorldIdPlaceholder(platform("Resonite"))).toBe(
       "https://go.resonite.com/world/U-esnya/R-3acf68b3-b78b-4a8c-96ef-97a2f744602f",
     );
+    expect(getWorldIdPlaceholder(platform("XRift"))).toBe(
+      "https://app.xrift.net/world/cdd3397c-7749-45a1-bdb4-c958cc9f1237",
+    );
   });
 
   it("知らないプラットフォームでは VRChat の例を返す", () => {
@@ -24,6 +27,9 @@ describe("getAuthorIdPlaceholder", () => {
 
   it("プラットフォームごとの例を返し、知らなければ VRChat の例を返す", () => {
     expect(getAuthorIdPlaceholder(platform("Resonite"))).toBe("U-esnya");
+    expect(getAuthorIdPlaceholder(platform("XRift"))).toBe(
+      "https://app.xrift.net/user/abe6ebca-b060-4d09-82c1-224e3a0ea77c",
+    );
     expect(getAuthorIdPlaceholder(platform("Unknown"))).toBe("usr_f0ae733a-b3ea-4462-b9a7-8c386e860ac1");
   });
 });
