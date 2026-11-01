@@ -166,7 +166,8 @@ describe("PinEditorModal", () => {
     await act(async () => {
       jest.advanceTimersByTime(300);
     });
-    await fireEvent.press(screen.getByText("Jacket（Author）"));
+    expect(screen.getByText("衣装 · by Author")).toBeTruthy();
+    await fireEvent.press(screen.getByText("Jacket"));
     await fireEvent.press(screen.getByText("完了"));
 
     expect(onDone.mock.calls[0][0]).toEqual([

@@ -110,12 +110,15 @@ export const ItemSearchStep = ({
                 accessibilityState={{ selected: isSelected }}
                 className="px-4"
               >
+                {/* 名前が長くても作者名が押し出されないよう、作者名はカテゴリと同じ行に出す */}
                 <View className="min-w-0 flex-1">
-                  <CatalystText variant="label" numberOfLines={1}>
-                    {item.author?.name ? `${item.name}（${item.author.name}）` : item.name}
+                  <CatalystText variant="label" numberOfLines={2}>
+                    {item.name}
                   </CatalystText>
-                  <CatalystText variant="caption" tone="muted">
-                    {ITEM_TYPE_LABELS[item.type]}
+                  <CatalystText variant="caption" tone="muted" numberOfLines={1}>
+                    {item.author?.name
+                      ? `${ITEM_TYPE_LABELS[item.type]} · by ${item.author.name}`
+                      : ITEM_TYPE_LABELS[item.type]}
                   </CatalystText>
                 </View>
                 {isSelected && <UniCheck size={20} className="text-light-tint dark:text-dark-tint" />}
