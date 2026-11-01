@@ -19,7 +19,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { ExternalLink, Images, Package, PackageX, Share2 } from "lucide-react-native";
 import { useCallback, useState } from "react";
-import { Platform, Pressable, Share, View } from "react-native";
+import { Pressable, Share, View } from "react-native";
 import { withUniwind } from "uniwind";
 
 const UniImage = withUniwind(Image);
@@ -173,13 +173,8 @@ export default function ItemPage() {
     if (!detail) return;
 
     const url = getItemUrl(detail.item.id);
-    const text = buildShareText(detail.item.name, detail.item.author.name, "");
-    // iOS の共有シートは URL を別枠で受け取るので、本文には付けない (アルバムの共有と同じ)
-    if (Platform.OS === "ios") {
-      Share.share({ message: text, url });
-    } else {
-      Share.share({ message: `${text}\n${url}` });
-    }
+    // iOS でも URL は本文に含める (投稿の共有と同じ)
+    Share.share({ message: buildShareText(detail.item.name, detail.item.author.name, url) });
   }, [detail]);
 
   return (

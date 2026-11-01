@@ -38,7 +38,6 @@ import {
   ActivityIndicator,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -519,12 +518,8 @@ export const AlbumDetailPage = ({ id, albumType }: Props) => {
 
   const handleShare = useCallback(() => {
     menuSheetRef.current?.dismiss();
-    const text = buildShareText(albumInfo?.title ?? "", albumInfo?.user?.displayName ?? "", "");
-    if (Platform.OS === "ios") {
-      Share.share({ message: text, url: albumUrl });
-    } else {
-      Share.share({ message: `${text}\n${albumUrl}` });
-    }
+    // iOS でも URL は本文に含める (投稿の共有と同じ)
+    Share.share({ message: buildShareText(albumInfo?.title ?? "", albumInfo?.user?.displayName ?? "", albumUrl) });
   }, [albumInfo, albumUrl]);
 
   const handleCopyUrl = useCallback(() => {

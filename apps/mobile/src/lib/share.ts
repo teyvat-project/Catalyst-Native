@@ -29,9 +29,10 @@ const sliceByTweetLength = (text: string, maxWeightedLength: number): string => 
 /**
  * 共有先へ流すテキストを組み立てる。組み立て方は Web 版の `buildShareText` に合わせてある。
  *
- * `url` は空文字を渡してもよい。iOS の共有シートのように URL を別枠で受け取る呼び出し元が
- * あるためで、その場合は末尾の改行ごと省く。長さの見積もりでは URL のぶんを常に確保する
- * (呼び出し元が後から URL を繋ぐため)。
+ * ```
+ * 本文[ by 投稿者] | サイト名
+ * URL
+ * ```
  */
 export const buildShareText = (text: string, username: string, url: string): string => {
   // Web 版は投稿者が取れないときは " by ..." ごと省略する
@@ -43,9 +44,7 @@ export const buildShareText = (text: string, username: string, url: string): str
       ? text
       : `${sliceByTweetLength(text, TWEET_MAX_LENGTH - reserved - twtr.getTweetLength(ELLIPSIS))}${ELLIPSIS}`;
 
-  const head = `${body}${author} | ${SITE_NAME}`;
-
-  return url ? `${head}\n${url}` : head;
+  return `${body}${author} | ${SITE_NAME}\n${url}`;
 };
 
 export type ShareWorld = {
@@ -88,7 +87,6 @@ const preventMentions = (text: string): string =>
  * 本文が無ければ 1 行目ごと、制作者が無ければ「(Created by 制作者)」を、ほかのワールドが無ければ
  * 「ほか N ワールド」を、投稿者が無ければ「投稿者 さんの投稿を」を省く。
  * `buildShareText` と違い、280 文字を超えても切り詰めない (ワールド情報を載せるときは超えてもよい、という方針)。
- * `url` は `buildShareText` と同じく空文字でもよい。
  * メンションになる `@` には U+2060 を挟む (preventMentions)。
  */
 export const buildWorldShareText = (text: string, username: string, url: string, world: ShareWorld): string => {
