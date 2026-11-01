@@ -79,7 +79,8 @@ import { ContestBanner } from "@/components/contest/banner";
 import { WeeklyThemeBanner } from "@/components/theme/banner";
 import "@/global.css";
 import { buildShareText, buildWorldShareText, withShareUtm } from "@/lib/share";
-import { fetchVRChatWorldAuthorName, isVRChatWorldId } from "@/lib/vrchat-world";
+import { isVRChatWorldId } from "@/lib/vrchat-world";
+import { getWorldSite } from "@/lib/world-site";
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
@@ -190,7 +191,12 @@ export default function StatusDetailsPage() {
   // 共有テキストに載せるワールド。X などのカードには 1 枚目の写真が出るので、1 枚目のワールドを代表にする。
   // ワールド名が無ければ (非公開ワールドは ID だけで名前が無い) ワールド付き共有は出さない。ID が無くても名前だけで共有する
   const firstWorld = useMemo(() => {
-    const worlds = (status?.medias ?? []).map((media) => metadata[media.id] && getEpicleseWorld(metadata[media.id]));
+    // 作成者を問い合わせる先を決めるのにプラットフォームも要る (XRift の ID は UUID で、ID だけでは見分けられない)
+    const worlds = (status?.medias ?? []).map((media) => {
+      const meta = metadata[media.id];
+      const world = meta && getEpicleseWorld(meta);
+      return world && { ...world, platform: meta.platform };
+    });
     const [world] = worlds;
     if (!world) return null;
 
@@ -440,15 +446,16 @@ export default function StatusDetailsPage() {
   const shareWithWorld = useCallback(async () => {
     if (!firstWorld || worldAuthorRequestRef.current) return;
 
-    // 作成者を問い合わせられるのは VRChat のワールドだけ。それ以外 (ID が無い・他のプラットフォーム) は名前だけで共有する
+    // 作成者を問い合わせられるのは VRChat と XRift のワールドだけ。それ以外 (ID が無い・他のプラットフォーム) は名前だけで共有する
     let author: string | null = null;
-    if (isVRChatWorldId(firstWorld.platformIdentifier)) {
+    const site = getWorldSite(firstWorld.platform, firstWorld.platformIdentifier);
+    if (site) {
       // 投稿を開く回数に比べて共有は少ないので、作成者は共有するときに初めて問い合わせる
       const controller = new AbortController();
       worldAuthorRequestRef.current = controller;
       setIsFetchingWorldAuthor(true);
       const timer = setTimeout(() => controller.abort(), WORLD_AUTHOR_TIMEOUT_MS);
-      author = await fetchVRChatWorldAuthorName(firstWorld.platformIdentifier, controller.signal);
+      author = await site.fetchAuthorName(controller.signal);
       clearTimeout(timer);
       setIsFetchingWorldAuthor(false);
 
