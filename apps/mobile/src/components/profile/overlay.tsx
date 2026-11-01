@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { ArrowLeft, Ellipsis, Flag, ShareIcon, ShieldBan } from "lucide-react-native";
 import { useCallback, useRef } from "react";
-import { Animated, Platform, Share, StyleSheet, TouchableOpacity, View, useColorScheme } from "react-native";
+import { Animated, Share, StyleSheet, TouchableOpacity, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { withUniwind } from "uniwind";
 
@@ -51,16 +51,10 @@ export const ProfileOverlay = ({ user, relationships, scrollY, showBackButton = 
   const handleSheetOpen = useCallback(() => sheet.current?.present(), []);
   const handleShareUser = useCallback(() => {
     sheet.current?.dismiss();
-    if (Platform.OS === "ios") {
-      Share.share({
-        message: `${user?.displayName} (@${user?.screenName})`,
-        url: url,
-      });
-    } else {
-      Share.share({
-        message: `${user?.displayName} (@${user?.screenName})\n${url}`,
-      });
-    }
+    // iOS でも URL は本文に含める (投稿の共有と同じ)
+    Share.share({
+      message: `${user?.displayName} (@${user?.screenName})\n${url}`,
+    });
   }, [user, url]);
   const handleToggleBlock = useCallback(async () => {
     sheet.current?.dismiss();

@@ -404,16 +404,10 @@ export default function StatusDetailsPage() {
           Clipboard.setStringAsync(buildShareText(status?.body ?? "", status?.user?.displayName ?? "", statusUrl));
           break;
         case "share":
-          if (Platform.OS === "ios") {
-            Share.share({
-              message: buildShareText(status?.body ?? "", status?.user?.displayName ?? "", ""),
-              url: statusUrl,
-            });
-          } else {
-            Share.share({
-              message: buildShareText(status?.body ?? "", status?.user?.displayName ?? "", statusUrl),
-            });
-          }
+          // iOS でも URL を別枠 (url) で渡さず本文に含める。別枠にすると多くの共有先が URL だけを受け取り、本文が落ちる
+          Share.share({
+            message: buildShareText(status?.body ?? "", status?.user?.displayName ?? "", statusUrl),
+          });
           break;
       }
     },
@@ -455,10 +449,9 @@ export default function StatusDetailsPage() {
     menuSheetRef.current?.dismiss();
 
     const world = { ...firstWorld, author };
-    const build = (url: string) => buildWorldShareText(status?.body ?? "", status?.user?.displayName ?? "", url, world);
-    Share.share(Platform.OS === "ios" ? { message: build(""), url: statusUrl } : { message: build(statusUrl) }).catch(
-      () => {},
-    );
+    Share.share({
+      message: buildWorldShareText(status?.body ?? "", status?.user?.displayName ?? "", statusUrl, world),
+    }).catch(() => {});
   }, [firstWorld, status, statusUrl]);
 
   const showMenu = useCallback(() => {

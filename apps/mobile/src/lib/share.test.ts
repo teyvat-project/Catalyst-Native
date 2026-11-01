@@ -24,13 +24,6 @@ describe("buildShareText", () => {
     expect(result).toBe(`hello | ${SITE_NAME}\n${URL}`);
   });
 
-  // iOS の共有シートは URL を別枠で受け取るので、呼び出し元が空文字を渡してくる
-  it("URL が空なら末尾に改行を付けない", () => {
-    const result = buildShareText("hello", "natsuneko", "");
-
-    expect(result).toBe(`hello by natsuneko | ${SITE_NAME}`);
-  });
-
   it("280 文字 (twitter-text 換算) を超えない場合は省略しない", () => {
     const text = "a".repeat(50);
     const result = buildShareText(text, "user", URL);
@@ -104,13 +97,6 @@ describe("buildWorldShareText", () => {
     const result = buildWorldShareText("", "27Cobalter", URL, WORLD);
 
     expect(result).toBe(`🌐 星映しの湖 (Created by Nekopyo)\n${USER_LINK}\n${URL}`);
-  });
-
-  // iOS の共有シートは URL を別枠で受け取るので、呼び出し元が空文字を渡してくる
-  it("URL が空なら誘導の行で終える", () => {
-    const result = buildWorldShareText("#Eku3D", "", "", WORLD);
-
-    expect(result).toBe(`#Eku3D\n🌐 星映しの湖 (Created by Nekopyo)\n${LINK}`);
   });
 
   it("280 文字 (twitter-text 換算) を超えても本文を切り詰めない", () => {
