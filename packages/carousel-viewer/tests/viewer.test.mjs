@@ -389,3 +389,39 @@ test("a single image leaves every drag to the pager and the list", async () => {
   );
   await act(() => renderer.unmount());
 });
+
+test("overlay position follows the track past the first page while the indicator progress stays clamped", async () => {
+  let overlay;
+  let indicator;
+  let renderer;
+  await act(() => {
+    renderer = create(
+      React.createElement(ImageCarousel, {
+        ...props,
+        renderCarouselOverlay: (context) => {
+          overlay = context;
+          return null;
+        },
+        renderCarouselIndicator: (context) => {
+          indicator = context;
+          return null;
+        },
+      }),
+    );
+  });
+  await act(() =>
+    renderer.root
+      .find((node) => typeof node.props.onLayout === "function")
+      .props.onLayout({ nativeEvent: { layout: { width: 400, height: 400 } } }),
+  );
+  const [pan] = renderer.root.findByType("GestureDetector").props.gesture;
+  pan.callbacks.onStart();
+  pan.callbacks.onUpdate({ translationX: -200 });
+  assert.equal(overlay.position.value, 0.5);
+  assert.equal(indicator.progress.value, 0.5);
+  // Dragging right on the first page rubber-bands the track past it.
+  pan.callbacks.onUpdate({ translationX: 200 });
+  assert.ok(overlay.position.value < 0);
+  assert.equal(indicator.progress.value, 0);
+  await act(() => renderer.unmount());
+});

@@ -199,7 +199,9 @@ export function ImageCarousel(props: Props) {
   const { index, images } = props;
   const { width } = size;
   const count = images.length;
-  const progress = useDerivedValue(() => (width > 0 ? clamp(-offset.value / width, 0, count - 1) : index));
+  // Unclamped, so overlay content stays on the image while it overshoots or rubber-bands past either end.
+  const position = useDerivedValue(() => (width > 0 ? -offset.value / width : index));
+  const progress = useDerivedValue(() => clamp(position.value, 0, count - 1));
 
   return (
     <View>
@@ -210,7 +212,7 @@ export function ImageCarousel(props: Props) {
             {/* Sibling of the gesture view so overlay touches never reach carousel gestures. */}
             {props.renderCarouselOverlay && (
               <View style={styles.absolute} pointerEvents="box-none">
-                {props.renderCarouselOverlay({ index, width: size.width, height: size.height })}
+                {props.renderCarouselOverlay({ index, width: size.width, height: size.height, position })}
               </View>
             )}
           </>

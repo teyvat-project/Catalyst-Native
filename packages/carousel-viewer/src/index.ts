@@ -3,6 +3,7 @@ export { ImageDetailViewer } from "./ImageDetailViewer";
 export { ImageGallery } from "./ImageGallery";
 export type {
   CarouselIndicatorContext,
+  CarouselOverlayContext,
   GalleryImage,
   GalleryState,
   ImageGalleryProps,
