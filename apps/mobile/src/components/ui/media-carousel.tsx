@@ -13,6 +13,7 @@ import BottomSheet, { BottomSheetBackdrop, BottomSheetView, type BottomSheetBack
 import {
   ImageGallery,
   type CarouselIndicatorContext,
+  type CarouselOverlayContext,
   type GalleryImage,
 } from "@natsuneko-laboratory/react-native-carousel-viewer";
 import NetInfo from "@react-native-community/netinfo";
@@ -303,7 +304,7 @@ export const MediaCarousel = memo(({ medias, createdAt, onIndexChange, pins }: P
   const isBlurred = hasSensitiveContent && !isBlurRemoved;
 
   const renderCarouselOverlay = useCallback(
-    ({ index, width, height }: { index: number; width: number; height: number }) => {
+    ({ index, width, height, position }: CarouselOverlayContext) => {
       if (isBlurred) {
         return (
           <Pressable
@@ -325,15 +326,13 @@ export const MediaCarousel = memo(({ medias, createdAt, onIndexChange, pins }: P
         return <MediaBadges hasReference={medias.some((m) => m.hasReference)} hasMultiple={medias.length > 1} />;
       }
 
-      // Photo pin overlay (座標付きメタデータ) — 現在表示中の media のピンのみ重ねる
-      const currentMedia = medias[index];
-      const references = currentMedia ? pins[currentMedia.id] : undefined;
-      if (!currentMedia || !references || references.length === 0) return null;
-
+      // Photo pin overlay (座標付きメタデータ) — スワイプ中は前後の画像のピンも一緒に動かす
       return (
         <MediaPinOverlay
-          media={currentMedia}
-          references={references}
+          medias={medias}
+          pins={pins}
+          index={index}
+          position={position}
           width={width}
           height={height}
           visible={arePinsVisible}

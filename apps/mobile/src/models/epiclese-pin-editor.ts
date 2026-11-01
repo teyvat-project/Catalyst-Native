@@ -24,7 +24,7 @@ export const ITEM_TYPE_LABELS: Record<EditablePin["type"], string> = {
   other: "その他",
 };
 
-// contain 表示の写真が箱の中で実際に描画される矩形 (レターボックスを除いた部分)。media-pin-overlay と同じ計算
+// contain 表示の写真が箱の中で実際に描画される矩形 (レターボックスを除いた部分)。ピンの表示 (media-pin-overlay) と共有する
 export const getContentRect = (
   box: { width: number; height: number },
   image: { width: number; height: number },
