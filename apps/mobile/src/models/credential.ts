@@ -1,5 +1,6 @@
 import { API_KEY } from "@/constants/apikey";
 import * as CredentialStore from "@/models/credential-store";
+import { ensureRegistered, restore, unregister } from "@/models/restore-credential";
 import type { EgeriaUser } from "@/models/sdk-types";
 import { PKCE } from "@natsuneko-laboratory/catalyst-sdk";
 import * as WebBrowser from "expo-web-browser";
@@ -16,7 +17,21 @@ type AuthResult = {
  * OAuth フローは開始しない。
  */
 export const tryRestore = async (): Promise<AuthResult> => {
-  const credential = await CredentialStore.getCredential();
+  let credential = await CredentialStore.getCredential();
+
+  // 保存済みトークンがないときだけ、Android の Restore Credentials から復元を試みる。
+  // 復元できたトークンは、以降は保存済みトークンと同じ流れで検証する
+  if (!credential.accessToken || !credential.refreshToken) {
+    const restored = await restore();
+
+    if (restored) {
+      await CredentialStore.saveCredential({
+        accessToken: restored.accessToken,
+        refreshToken: restored.refreshToken,
+      });
+      credential = await CredentialStore.getCredential();
+    }
+  }
 
   if (credential.accessToken && credential.refreshToken) {
     try {
@@ -25,6 +40,8 @@ export const tryRestore = async (): Promise<AuthResult> => {
       });
 
       if (me?.user) {
+        // 鍵の登録は待たない (失敗しても次回起動時にやり直す)
+        void ensureRegistered(credential);
         return { credential, isLoggedIn: true, user: me.user };
       }
     } catch {
@@ -40,15 +57,14 @@ export const tryRestore = async (): Promise<AuthResult> => {
             refreshToken: newTokens.refreshToken,
           });
 
-          return {
-            credential: {
-              ...credential,
-              accessToken: newTokens.accessToken,
-              refreshToken: newTokens.refreshToken,
-            },
-            isLoggedIn: true,
-            user: me.user,
+          const refreshed = {
+            ...credential,
+            accessToken: newTokens.accessToken,
+            refreshToken: newTokens.refreshToken,
           };
+          void ensureRegistered(refreshed);
+
+          return { credential: refreshed, isLoggedIn: true, user: me.user };
         }
       } catch (refreshErr) {
         console.error("Token refresh failed:", refreshErr);
@@ -56,7 +72,8 @@ export const tryRestore = async (): Promise<AuthResult> => {
     }
   }
 
-  // トークンが無い or 復元失敗 → 未ログイン状態で返す
+  // トークンが無い or 復元失敗 → 未ログイン状態で返す。
+  // ここで鍵まで消すと新しい端末で復元できなくなるので、logout() (トークンのみ) を使う
   await logout();
   return {
     credential: CredentialStore.EMPTY_CREDENTIAL,
@@ -104,15 +121,15 @@ export const login = async (): Promise<AuthResult> => {
         const { data: me } = await newCredential.client.egeria.v1.me.get();
 
         if (me?.user) {
-          return {
-            credential: {
-              ...newCredential,
-              accessToken: token.accessToken,
-              refreshToken: token.refreshToken,
-            },
-            isLoggedIn: true,
-            user: me.user,
+          const loggedIn = {
+            ...newCredential,
+            accessToken: token.accessToken,
+            refreshToken: token.refreshToken,
           };
+          // ログインでは記録の新しさに関わらず作り直す (別アカウントの鍵や、サーバーで消えた鍵が端末に残っていることがある)
+          void ensureRegistered(loggedIn, { force: true });
+
+          return { credential: loggedIn, isLoggedIn: true, user: me.user };
         }
       } catch (err) {
         console.error(err);
@@ -127,6 +144,23 @@ export const login = async (): Promise<AuthResult> => {
   };
 };
 
+/**
+ * 保存済みトークンだけを消す。Restore Credentials の鍵には触らない。
+ * tryRestore() の後片付けで使うため、ここで鍵を消してはいけない。
+ */
 export const logout = async (): Promise<void> => {
   await CredentialStore.clear();
+};
+
+/**
+ * ユーザー操作によるサインアウト。Restore Credentials の鍵を消してからトークンを消す。
+ * unregister は失敗しても例外を投げず、端末側の鍵は必ず消える。
+ * server: false ならサーバー側の鍵の削除を行わない (アカウント削除後に使う)。
+ */
+export const signOut = async (
+  credential: CredentialStore.Credential,
+  options?: { server?: boolean },
+): Promise<void> => {
+  await unregister(credential, options);
+  await logout();
 };

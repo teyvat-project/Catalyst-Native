@@ -65,13 +65,18 @@ export default function AccountSettingsPage() {
         text: "ログアウト",
         style: "destructive",
         onPress: async () => {
-          await Credential.logout();
+          // 鍵の登録を消すため、credential がある場合は signOut を使う
+          if (account) {
+            await Credential.signOut(account.credential);
+          } else {
+            await Credential.logout();
+          }
           setAccount(null);
           router.dismissAll();
         },
       },
     ]);
-  }, [setAccount]);
+  }, [account, setAccount]);
 
   const footerText = !canEditScreenName
     ? "すでに1度ユーザー名を変更しているため、変更できません。"

@@ -1,0 +1,6 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": ["com.natsuneko.catalyst.restorecredential.CatalystRestoreCredentialModule"]
+  }
+}
