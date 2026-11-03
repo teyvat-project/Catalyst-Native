@@ -265,6 +265,20 @@ export default Sentry.wrap(function RootLayout() {
                   options={{ title: "お題ポイント", headerBackTitle: "戻る" }}
                 />
                 <Stack.Screen
+                  name="archive/index"
+                  options={{ title: "月間アーカイブ", headerBackTitle: "戻る" }}
+                />
+                <Stack.Screen
+                  name="archive/[year]/[month]"
+                  options={({ route }) => ({
+                    title: "月間アーカイブ",
+                    headerBackTitle: "戻る",
+                    // 左のボタンで古い月へ移るときは、前の画面へ戻るときと同じく左から出す
+                    animationTypeForReplace:
+                      (route.params as { direction?: string } | undefined)?.direction === "older" ? "pop" : "push",
+                  })}
+                />
+                <Stack.Screen
                   name="gallery"
                   options={{ title: "ギャラリー", headerBackTitle: "戻る" }}
                 />
