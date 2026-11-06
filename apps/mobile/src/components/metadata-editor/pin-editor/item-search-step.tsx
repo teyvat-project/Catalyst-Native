@@ -2,10 +2,11 @@ import { CatalystListItem, CatalystSearchField, CatalystText } from "@/component
 import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import { clientAtom } from "@/models/atoms/credential";
 import { ITEM_TYPE_LABELS, type EditablePin } from "@/models/epiclese-pin-editor";
+import { loadRecentItems, recordRecentItem } from "@/models/epiclese-recent-items";
 import type { EpicleseAuthorResponse, EpicleseItemResponse } from "@natsuneko-laboratory/catalyst-sdk";
 import { useAtomValue } from "jotai";
 import { Check } from "lucide-react-native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { withUniwind } from "uniwind";
@@ -51,6 +52,68 @@ export const ItemSearchStep = ({
   );
   const { results, isLoading, isError, retry } = useDebouncedSearch(query, fetchItems);
 
+  const [recentItems, setRecentItems] = useState<EpicleseItemResponse[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    loadRecentItems().then((items) => {
+      if (!cancelled) setRecentItems(items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 検索欄が空のときは、最近選んだアイテムを先頭に出し、検索結果からは除く。
+  // 名前などが変わっていることがあるので、検索結果にも入っていればそちらを使う
+  const isQueryEmpty = query.trim() === "";
+  const shownRecentItems = useMemo(() => {
+    if (!isQueryEmpty) return [];
+
+    const latest = new Map(results.map((item) => [item.id, item]));
+    return recentItems
+      .filter((item) => !authorId || item.author?.id === authorId)
+      .map((item) => latest.get(item.id) ?? item);
+  }, [authorId, isQueryEmpty, recentItems, results]);
+  const listItems = useMemo(() => {
+    const recentIds = new Set(shownRecentItems.map((item) => item.id));
+    return results.filter((item) => !recentIds.has(item.id));
+  }, [results, shownRecentItems]);
+
+  const handleSelect = useCallback(
+    (item: EpicleseItemResponse) => {
+      recordRecentItem(item).catch(() => {});
+      onSelect(item);
+    },
+    [onSelect],
+  );
+
+  const renderItem = (item: EpicleseItemResponse) => {
+    const isSelected = item.id === pin.reference;
+
+    return (
+      <CatalystListItem
+        key={item.id}
+        onPress={() => handleSelect(item)}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+        className="px-4"
+      >
+        {/* 名前が長くても作者名が押し出されないよう、作者名はカテゴリと同じ行に出す */}
+        <View className="min-w-0 flex-1">
+          <CatalystText variant="label" numberOfLines={2}>
+            {item.name}
+          </CatalystText>
+          <CatalystText variant="caption" tone="muted" numberOfLines={1}>
+            {item.author?.name
+              ? `${ITEM_TYPE_LABELS[item.type]} · by ${item.author.name}`
+              : ITEM_TYPE_LABELS[item.type]}
+          </CatalystText>
+        </View>
+        {isSelected && <UniCheck size={20} className="text-light-tint dark:text-dark-tint" />}
+      </CatalystListItem>
+    );
+  };
+
   return (
     <>
       <PickerHeader title="アイテムを選択" left={{ label: "戻る", onPress: onBack }} />
@@ -76,11 +139,20 @@ export const ItemSearchStep = ({
         </View>
       ) : (
         <FlatList
-          data={results}
+          data={listItems}
           keyExtractor={(item) => item.id}
           keyboardShouldPersistTaps="handled"
           // 末尾の行がホームインジケーターに重ならないよう、下の安全領域ぶん余白を取る
           contentContainerStyle={{ paddingBottom: insets.bottom }}
+          ListHeaderComponent={
+            shownRecentItems.length > 0 ? (
+              <View>
+                <SectionLabel>最近使ったアイテム</SectionLabel>
+                {shownRecentItems.map(renderItem)}
+                <SectionLabel>すべてのアイテム</SectionLabel>
+              </View>
+            ) : undefined
+          }
           ListEmptyComponent={
             isLoading ? (
               <ActivityIndicator className="py-8" colorClassName="accent-light-tint dark:accent-dark-tint" />
@@ -100,33 +172,15 @@ export const ItemSearchStep = ({
               </Pressable>
             </View>
           }
-          renderItem={({ item }) => {
-            const isSelected = item.id === pin.reference;
-
-            return (
-              <CatalystListItem
-                onPress={() => onSelect(item)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                className="px-4"
-              >
-                {/* 名前が長くても作者名が押し出されないよう、作者名はカテゴリと同じ行に出す */}
-                <View className="min-w-0 flex-1">
-                  <CatalystText variant="label" numberOfLines={2}>
-                    {item.name}
-                  </CatalystText>
-                  <CatalystText variant="caption" tone="muted" numberOfLines={1}>
-                    {item.author?.name
-                      ? `${ITEM_TYPE_LABELS[item.type]} · by ${item.author.name}`
-                      : ITEM_TYPE_LABELS[item.type]}
-                  </CatalystText>
-                </View>
-                {isSelected && <UniCheck size={20} className="text-light-tint dark:text-dark-tint" />}
-              </CatalystListItem>
-            );
-          }}
+          renderItem={({ item }) => renderItem(item)}
         />
       )}
     </>
   );
 };
+
+const SectionLabel = ({ children }: { children: string }) => (
+  <CatalystText variant="caption" tone="muted" className="px-4 pt-3 pb-1 font-semibold">
+    {children}
+  </CatalystText>
+);
