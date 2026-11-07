@@ -14,6 +14,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { useDefaultCategories } from "./emoji-data";
 import { useEmojiPickerDefaults } from "./emoji-picker-view";
 import { getRecentItems, recordUnicodeUsage, recordUrlUsage, toRecentEmojis } from "./frequency-manager";
+import { useIntelligenceSearchProvider } from "./intelligence-search";
 
 export type { EmojiPickerSheetRef };
 
@@ -34,6 +35,7 @@ export const EmojiPickerSheet = forwardRef<EmojiPickerSheetRef, Props>(
     const pickerDefaults = useEmojiPickerDefaults();
     // 「最近使用」はリアクションの履歴なので、リアクションを付けるピッカーにだけ出す
     const showsRecent = onReact !== undefined;
+    const intelligenceSearch = useIntelligenceSearchProvider(categories);
 
     useImperativeHandle(ref, () => ({
       open: () => {
@@ -166,6 +168,7 @@ export const EmojiPickerSheet = forwardRef<EmojiPickerSheetRef, Props>(
         title="リアクションを追加"
         categories={categories}
         isLoading={isCategoriesLoading}
+        searchProvider={intelligenceSearch}
         onEmojiSelected={handleEmojiSelected}
         onDismiss={handleDismiss}
       />
