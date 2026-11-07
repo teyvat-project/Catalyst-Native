@@ -37,6 +37,7 @@ import {
   type UserProfile,
 } from "@/models/epiclese-metadata-editor";
 import { setPins, type EditablePin } from "@/models/epiclese-pin-editor";
+import { recordCreatedItems } from "@/models/epiclese-recent-items";
 import type { Media } from "@/models/sdk-types";
 import type { EpiclesePlatformResponse } from "@natsuneko-laboratory/catalyst-sdk";
 import { Stack, useLocalSearchParams, usePreventRemove, useRouter } from "expo-router";
@@ -194,11 +195,12 @@ export default function StatusMetadataScreen() {
     setIsSubmitting(true);
 
     try {
-      await client.epiclese.v1.tag.by.status.id.create({
+      const { data } = await client.epiclese.v1.tag.by.status.id.create({
         path: { id },
         body: items,
         throwOnError: true,
       });
+      recordCreatedItems(items, data).catch(() => {});
       setMetadataRevision((revision) => revision + 1);
       setIsSaved(true);
     } catch (error) {

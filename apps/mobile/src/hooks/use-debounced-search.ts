@@ -14,6 +14,8 @@ export const useDebouncedSearch = <T>(
   { delay = 300, skipEmpty = false }: Options = {},
 ) => {
   const [results, setResults] = useState<T[]>([]);
+  // results がどの問い合わせの結果か。入力中は query と食い違うので、結果に合わせて出し分けたいときに使う
+  const [resultsQuery, setResultsQuery] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -24,6 +26,7 @@ export const useDebouncedSearch = <T>(
 
     if (skipEmpty && query.trim() === "") {
       setResults([]);
+      setResultsQuery(query);
       setIsLoading(false);
       setIsError(false);
       return;
@@ -35,6 +38,7 @@ export const useDebouncedSearch = <T>(
         .then((items) => {
           if (requestId !== latestRequestRef.current) return;
           setResults(items);
+          setResultsQuery(query);
           setIsError(false);
         })
         .catch(() => {
@@ -51,5 +55,5 @@ export const useDebouncedSearch = <T>(
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
 
-  return { results, isLoading, isError, retry };
+  return { results, resultsQuery, isLoading, isError, retry };
 };

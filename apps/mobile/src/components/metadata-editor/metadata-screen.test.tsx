@@ -5,10 +5,14 @@ import { Alert, Pressable } from "react-native";
 
 import StatusMetadataScreen from "@/app/status/[id]/metadata";
 import { accountAtom } from "@/models/atoms/account";
+import type { EditablePin } from "@/models/epiclese-pin-editor";
+import { loadRecentItems } from "@/models/epiclese-recent-items";
+import { resetAsyncStorageMock } from "@/test/helpers/async-storage";
 
 // 画面のロジック (読み込み・保存・破棄確認) だけを見るため、ネイティブ依存の部品とルーターは差し替える
 const mockRouter = { back: jest.fn(), canGoBack: jest.fn(() => true), replace: jest.fn() };
 const mockHeader: { right?: () => ReactNode } = {};
+const mockPinEditor: { onDone?: (pins: EditablePin[]) => void } = {};
 const mockPreventRemove: { prevent: boolean; callback?: (event: { repeat: () => void }) => void } = {
   prevent: false,
 };
@@ -35,7 +39,13 @@ jest.mock("@/components/metadata-editor/platform-sheet", () => ({ PlatformSheet:
 jest.mock("@/components/metadata-editor/metadata-row", () => ({ MetadataRow: () => null }));
 jest.mock("@/components/metadata-editor/user-picker-modal", () => ({ UserPickerModal: () => null }));
 jest.mock("@/components/metadata-editor/world-picker", () => ({ WorldPickerModal: () => null }));
-jest.mock("@/components/metadata-editor/pin-editor", () => ({ PinEditorModal: () => null }));
+jest.mock("@/components/metadata-editor/pin-editor", () => ({
+  PinEditorModal: ({ onDone }: { onDone: (pins: EditablePin[]) => void }) => {
+    mockPinEditor.onDone = onDone;
+    return null;
+  },
+}));
+jest.mock("@react-native-async-storage/async-storage");
 jest.mock("@/components/metadata-editor/original-photo-import", () => ({ OriginalPhotoImport: () => null }));
 jest.mock("@/components/design-system", () => {
   const { Pressable, Text, View } = jest.requireActual("react-native");
@@ -109,6 +119,7 @@ const pressSave = async () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  resetAsyncStorageMock();
   delete mockHeader.right;
   jest.spyOn(Alert, "alert").mockImplementation(() => {});
 });
@@ -143,5 +154,51 @@ describe("StatusMetadataScreen", () => {
 
     expect(Alert.alert).not.toHaveBeenCalled();
     expect(repeat).not.toHaveBeenCalled();
+  });
+
+  describe("保存したら、新しく作ったアイテムを最近使ったアイテムに入れる", () => {
+    const author = { id: "a-1", platformIdentifier: "usr_1", platform: "", name: "Author" };
+    const savedPin = (reference: string, name: string) => ({
+      x: 0,
+      y: 0,
+      order: 0,
+      reference,
+      type: "cloth",
+      name,
+      description: "",
+      externalUrl: null,
+      imageUrl: null,
+      author: { ...author, platform: null },
+    });
+
+    const saveWithPins = async (pins: EditablePin[], response: unknown) => {
+      const { client } = await renderScreen();
+      client.epiclese.v1.tag.by.status.id.create.mockResolvedValue({ data: response } as never);
+      await act(async () => mockPinEditor.onDone?.(pins));
+      await pressSave();
+    };
+
+    it("送ったときに id が無かったアイテムだけを入れる", async () => {
+      await saveWithPins(
+        [
+          { x: 0, y: 0, order: 0, type: "cloth", name: "Old", reference: "old" },
+          { x: 0, y: 0, order: 1, type: "cloth", name: "New coat", author },
+        ],
+        { m1: { reference: [savedPin("old", "Old"), savedPin("new-1", "New coat")] } },
+      );
+
+      await expect(loadRecentItems()).resolves.toEqual([
+        { id: "new-1", type: "cloth", name: "New coat", author: { id: "a-1", name: "Author" } },
+      ]);
+      expect(mockRouter.back).toHaveBeenCalled();
+    });
+
+    it("保存の結果が想定と違う形でも、保存は成功として扱う", async () => {
+      await saveWithPins([{ x: 0, y: 0, order: 0, type: "cloth", name: "New coat", author }], null);
+
+      expect(Alert.alert).not.toHaveBeenCalled();
+      expect(mockRouter.back).toHaveBeenCalled();
+      await expect(loadRecentItems()).resolves.toEqual([]);
+    });
   });
 });
