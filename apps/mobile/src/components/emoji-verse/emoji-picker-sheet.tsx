@@ -1,4 +1,5 @@
 import { accountAtom } from "@/models/atoms/account";
+import { intelligenceSearchQueryAtom } from "@/models/atoms/intelligence-search";
 import type { CatalystCustomReaction, CatalystCustomReactionList } from "@/models/sdk-types";
 import {
   emojiToCodepoints,
@@ -9,7 +10,7 @@ import {
   EmojiPickerSheet as BaseEmojiPickerSheet,
   type EmojiPickerSheetRef,
 } from "@natsuneko-laboratory/react-native-emoji-verse/sheet";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useStore } from "jotai";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useDefaultCategories } from "./emoji-data";
 import { useEmojiPickerDefaults } from "./emoji-picker-view";
@@ -22,10 +23,15 @@ type Props = {
   onReact?: (symbol: string, url?: string, customReactionId?: string) => void;
   onEmojiSelected?: (emoji: EmojiItem) => void;
   includeCatalystReactions?: boolean;
+  /**
+   * リアクションを付ける投稿の id など。同じ id で開き直したときは、前に意味で探した言葉から始める。
+   * 覚えるのは直前に探した 1 つだけで、別の id で探すと前の言葉は消える
+   */
+  searchContextId?: string;
 };
 
 export const EmojiPickerSheet = forwardRef<EmojiPickerSheetRef, Props>(
-  function EmojiPickerSheet({ onReact, onEmojiSelected, includeCatalystReactions = true }, ref) {
+  function EmojiPickerSheet({ onReact, onEmojiSelected, includeCatalystReactions = true, searchContextId }, ref) {
     const account = useAtomValue(accountAtom);
     const [categories, setCategories] = useState<EmojiCategory[]>([]);
     const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
@@ -36,9 +42,26 @@ export const EmojiPickerSheet = forwardRef<EmojiPickerSheetRef, Props>(
     // 「最近使用」はリアクションの履歴なので、リアクションを付けるピッカーにだけ出す
     const showsRecent = onReact !== undefined;
     const intelligenceSearch = useIntelligenceSearchProvider(categories);
+    // 同じ投稿に同じ言葉から続けてリアクションを付けられるよう、開き直したときは前に意味で探した言葉から始める。
+    // 言葉は開いたときに一度読めばよい。購読すると、どこかで探すたびにタイムラインにある全投稿のシートが描き直される
+    const store = useStore();
+    const [intelligenceQuery, setIntelligenceQuery] = useState("");
+    const handleIntelligenceQueryChange = useCallback(
+      (query: string) => {
+        if (searchContextId === undefined) return;
+        store.set(intelligenceSearchQueryAtom, (prev) => {
+          if (query !== "") return { contextId: searchContextId, query };
+          // 開いただけでは消さない。消すのは、同じ投稿で言葉を消したり、ほかのタブに移ったりしたときと、別の投稿で探したとき
+          return prev?.contextId === searchContextId ? null : prev;
+        });
+      },
+      [searchContextId, store],
+    );
 
     useImperativeHandle(ref, () => ({
       open: () => {
+        const last = store.get(intelligenceSearchQueryAtom);
+        setIntelligenceQuery(searchContextId !== undefined && last?.contextId === searchContextId ? last.query : "");
         setIsPresented(true);
         sheetRef.current?.open();
       },
@@ -169,6 +192,8 @@ export const EmojiPickerSheet = forwardRef<EmojiPickerSheetRef, Props>(
         categories={categories}
         isLoading={isCategoriesLoading}
         searchProvider={intelligenceSearch}
+        defaultProviderQuery={intelligenceQuery}
+        onProviderQueryChange={handleIntelligenceQueryChange}
         onEmojiSelected={handleEmojiSelected}
         onDismiss={handleDismiss}
       />
