@@ -1,11 +1,11 @@
-import { resetSecureStoreMock } from "@/test/helpers/secure-store";
+import { resetAsyncStorageMock } from "@/test/helpers/async-storage";
 import { getRecentItems, recordUnicodeUsage, recordUrlUsage } from "./frequency-manager";
 
-jest.mock("expo-secure-store");
+jest.mock("@react-native-async-storage/async-storage");
 
 describe("emoji frequency manager", () => {
   beforeEach(() => {
-    resetSecureStoreMock();
+    resetAsyncStorageMock();
   });
 
   it("初期状態では空配列を返す", async () => {

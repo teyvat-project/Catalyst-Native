@@ -1,4 +1,4 @@
-import AsyncStorage from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "emoji_frequency_v2";
 const MAX_COUNT = 30;
@@ -15,7 +15,7 @@ interface FrequencyItem {
 
 async function getItems(): Promise<FrequencyItem[]> {
   try {
-    const raw = await AsyncStorage.getItemAsync(STORAGE_KEY);
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     return JSON.parse(raw) as FrequencyItem[];
   } catch {
@@ -24,7 +24,7 @@ async function getItems(): Promise<FrequencyItem[]> {
 }
 
 async function saveItems(items: FrequencyItem[]): Promise<void> {
-  await AsyncStorage.setItemAsync(STORAGE_KEY, JSON.stringify(items));
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
 export async function recordUnicodeUsage(emoji: string): Promise<void> {
