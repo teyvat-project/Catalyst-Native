@@ -61,6 +61,24 @@ describe("useDebouncedSearch", () => {
     expect(result.current.results).toEqual(["ab"]);
   });
 
+  it("resultsQuery は結果が届くまで前の問い合わせのままにする", async () => {
+    const fetcher = jest.fn(async (q: string) => [q]);
+    const { rerender, result } = await renderHook(({ q }: { q: string }) => useDebouncedSearch(q, fetcher), {
+      initialProps: { q: "jac" },
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    await rerender({ q: "" });
+    expect(result.current.resultsQuery).toBe("jac");
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(result.current.resultsQuery).toBe("");
+  });
+
   it("skipEmpty なら空欄で取得しない", async () => {
     const fetcher = jest.fn(async () => ["x"]);
     const { result } = await renderHook(() => useDebouncedSearch("  ", fetcher, { skipEmpty: true }));

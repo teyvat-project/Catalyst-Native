@@ -2,12 +2,12 @@ import { CatalystListItem, CatalystSearchField, CatalystText } from "@/component
 import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import { clientAtom } from "@/models/atoms/credential";
 import { ITEM_TYPE_LABELS, type EditablePin } from "@/models/epiclese-pin-editor";
-import { loadRecentItems, recordRecentItem } from "@/models/epiclese-recent-items";
+import { forgetRecentItem, loadRecentItems, recordRecentItems, type RecentItem } from "@/models/epiclese-recent-items";
 import type { EpicleseAuthorResponse, EpicleseItemResponse } from "@natsuneko-laboratory/catalyst-sdk";
 import { useAtomValue } from "jotai";
 import { Check } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { withUniwind } from "uniwind";
 
@@ -50,50 +50,73 @@ export const ItemSearchStep = ({
     },
     [client, authorId],
   );
-  const { results, isLoading, isError, retry } = useDebouncedSearch(query, fetchItems);
+  const { results, resultsQuery, isLoading, isError, retry } = useDebouncedSearch(query, fetchItems);
 
-  const [recentItems, setRecentItems] = useState<EpicleseItemResponse[]>([]);
+  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   useEffect(() => {
-    let cancelled = false;
-    loadRecentItems().then((items) => {
-      if (!cancelled) setRecentItems(items);
-    });
-    return () => {
-      cancelled = true;
-    };
+    loadRecentItems().then(setRecentItems);
   }, []);
 
-  // 検索欄が空のときは、最近選んだアイテムを先頭に出し、検索結果からは除く。
+  // 検索欄が空のときは、最近使ったアイテムを先頭に出し、検索結果からは除く。
+  // 入力中の results は前の問い合わせの結果のままなので、出し分けは results の問い合わせに合わせる。
   // 名前などが変わっていることがあるので、検索結果にも入っていればそちらを使う
-  const isQueryEmpty = query.trim() === "";
-  const shownRecentItems = useMemo(() => {
-    if (!isQueryEmpty) return [];
+  const latest = new Map(results.map((item) => [item.id, item]));
+  const shownRecentItems =
+    resultsQuery?.trim() === ""
+      ? recentItems
+          .map((item) => latest.get(item.id) ?? item)
+          .filter((item) => !authorId || item.author.id === authorId)
+      : [];
+  const recentIds = new Set(shownRecentItems.map((item) => item.id));
+  const listItems = results.filter((item) => !recentIds.has(item.id));
 
-    const latest = new Map(results.map((item) => [item.id, item]));
-    return recentItems
-      .filter((item) => !authorId || item.author?.id === authorId)
-      .map((item) => latest.get(item.id) ?? item);
-  }, [authorId, isQueryEmpty, recentItems, results]);
-  const listItems = useMemo(() => {
-    const recentIds = new Set(shownRecentItems.map((item) => item.id));
-    return results.filter((item) => !recentIds.has(item.id));
-  }, [results, shownRecentItems]);
-
-  const handleSelect = useCallback(
-    (item: EpicleseItemResponse) => {
-      recordRecentItem(item).catch(() => {});
-      onSelect(item);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  // 押した直後の 2 回目の押下は再描画より先に届くことがあるので、確かめている最中かは ref で見る
+  const isVerifyingRef = useRef(false);
+  // 確かめている間に戻るなどして画面を離れたら、あとから届いた結果でピンを書き換えない
+  useEffect(
+    () => () => {
+      isVerifyingRef.current = false;
     },
-    [onSelect],
+    [],
   );
 
-  const renderItem = (item: EpicleseItemResponse) => {
+  const select = (item: EpicleseItemResponse) => {
+    recordRecentItems([item]).catch(() => {});
+    onSelect(item);
+  };
+
+  // 最近使ったアイテムは、あとからサーバーで削除・非表示になっていることがある。
+  // 検索結果に入っていないものは取り直して確かめ、無くなっていれば履歴から外す。確かめている間はほかの行も受け付けない
+  const handleSelect = async (item: RecentItem) => {
+    if (isVerifyingRef.current) return;
+    const fresh = latest.get(item.id);
+    if (fresh) return select(fresh);
+
+    isVerifyingRef.current = true;
+    setVerifyingId(item.id);
+    const result = await client.epiclese.v1.items.id.get({ path: { id: item.id } }).catch(() => null);
+    if (!isVerifyingRef.current) return;
+    isVerifyingRef.current = false;
+    setVerifyingId(null);
+
+    if (result?.data) return select(result.data.item);
+    if (result?.response?.status === 404) {
+      forgetRecentItem(item.id).catch(() => {});
+      setRecentItems((prev) => prev.filter((recent) => recent.id !== item.id));
+      Alert.alert("このアイテムは削除されています", "最近使ったアイテムから外しました");
+      return;
+    }
+    Alert.alert("エラー", "アイテムを読み込めませんでした");
+  };
+
+  const renderItem = (item: RecentItem) => {
     const isSelected = item.id === pin.reference;
 
     return (
       <CatalystListItem
         key={item.id}
-        onPress={() => handleSelect(item)}
+        onPress={() => void handleSelect(item)}
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected }}
         className="px-4"
@@ -109,7 +132,11 @@ export const ItemSearchStep = ({
               : ITEM_TYPE_LABELS[item.type]}
           </CatalystText>
         </View>
-        {isSelected && <UniCheck size={20} className="text-light-tint dark:text-dark-tint" />}
+        {item.id === verifyingId ? (
+          <ActivityIndicator colorClassName="accent-light-tint dark:accent-dark-tint" />
+        ) : (
+          isSelected && <UniCheck size={20} className="text-light-tint dark:text-dark-tint" />
+        )}
       </CatalystListItem>
     );
   };
@@ -149,14 +176,14 @@ export const ItemSearchStep = ({
               <View>
                 <SectionLabel>最近使ったアイテム</SectionLabel>
                 {shownRecentItems.map(renderItem)}
-                <SectionLabel>すべてのアイテム</SectionLabel>
+                {(isLoading || listItems.length > 0) && <SectionLabel>アイテム一覧</SectionLabel>}
               </View>
             ) : undefined
           }
           ListEmptyComponent={
             isLoading ? (
               <ActivityIndicator className="py-8" colorClassName="accent-light-tint dark:accent-dark-tint" />
-            ) : (
+            ) : shownRecentItems.length > 0 ? undefined : (
               <CatalystText tone="muted" className="px-6 py-8 text-center">
                 該当するアイテムが見つかりません
               </CatalystText>
@@ -180,7 +207,7 @@ export const ItemSearchStep = ({
 };
 
 const SectionLabel = ({ children }: { children: string }) => (
-  <CatalystText variant="caption" tone="muted" className="px-4 pt-3 pb-1 font-semibold">
+  <CatalystText variant="caption" tone="muted" accessibilityRole="header" className="px-4 pt-3 pb-1 font-semibold">
     {children}
   </CatalystText>
 );
