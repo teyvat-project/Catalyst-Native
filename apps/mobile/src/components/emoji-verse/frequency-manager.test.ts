@@ -1,11 +1,18 @@
-import { resetSecureStoreMock } from "@/test/helpers/secure-store";
-import { getRecentItems, recordUnicodeUsage, recordUrlUsage } from "./frequency-manager";
+import { resetAsyncStorageMock } from "@/test/helpers/async-storage";
+import type { EmojiCategory, EmojiItem } from "@natsuneko-laboratory/react-native-emoji-verse";
+import {
+  type FrequencyItem,
+  getRecentItems,
+  recordUnicodeUsage,
+  recordUrlUsage,
+  toRecentEmojis,
+} from "./frequency-manager";
 
-jest.mock("expo-secure-store");
+jest.mock("@react-native-async-storage/async-storage");
 
 describe("emoji frequency manager", () => {
   beforeEach(() => {
-    resetSecureStoreMock();
+    resetAsyncStorageMock();
   });
 
   it("初期状態では空配列を返す", async () => {
@@ -50,5 +57,63 @@ describe("emoji frequency manager", () => {
     // 直近に使ったものが先頭、最も古い5件 (emoji-0〜emoji-4) が切り捨てられている
     expect(items[0].id).toBe("emoji-34");
     expect(items.some((i) => i.id === "emoji-0")).toBe(false);
+  });
+});
+
+describe("toRecentEmojis", () => {
+  const history = (type: FrequencyItem["type"], id: string, value = id): FrequencyItem => ({
+    type,
+    id,
+    value,
+    timestamp: 0,
+    count: 1,
+  });
+
+  const neko: EmojiItem = {
+    id: ":neko:",
+    type: { kind: "url", url: "https://example.com/neko-v2.png", customReactionId: "cr-1" },
+    keywords: ["ねこ", "neko"],
+  };
+  const kawaii: EmojiItem = {
+    id: "kawaii",
+    type: { kind: "url", url: "https://example.com/kawaii.png" },
+    keywords: ["かわいい"],
+  };
+  const thumbsUp: EmojiItem = {
+    id: "👍",
+    type: { kind: "unicode", emoji: "👍" },
+    keywords: ["thumbs up"],
+    variants: ["👍🏻", "👍🏽"],
+  };
+  const categories: EmojiCategory[] = [
+    { id: "user-custom", title: "マイリアクション", icon: "star-plus", emojis: [neko] },
+    { id: "catalyst", title: "Catalyst", icon: "star", emojis: [kawaii] },
+    { id: "people", title: "People", icon: "smile", emojis: [thumbsUp] },
+  ];
+
+  it("肌の色を付けた Unicode 絵文字は、いまの肌の色で出せるよう元の絵文字にまとめる", () => {
+    expect(toRecentEmojis([history("unicode", "👍🏽"), history("unicode", "👍🏻")], categories)).toEqual([thumbsUp]);
+  });
+
+  it("ピッカーにない Unicode 絵文字は履歴の値のまま並べる", () => {
+    expect(toRecentEmojis([history("unicode", "🫨")], categories)).toEqual([
+      { id: "🫨", type: { kind: "unicode", emoji: "🫨" }, keywords: [] },
+    ]);
+  });
+
+  it("カスタムリアクションはカテゴリから customReactionId と最新の画像を引き直す", () => {
+    expect(
+      toRecentEmojis(
+        [
+          history("url", ":neko:", "https://example.com/neko-v1.png"),
+          history("url", "kawaii", "https://example.com/kawaii.png"),
+        ],
+        categories,
+      ),
+    ).toEqual([neko, kawaii]);
+  });
+
+  it("カテゴリにないカスタムリアクションは除く", () => {
+    expect(toRecentEmojis([history("url", ":deleted:", "https://example.com/deleted.png")], categories)).toEqual([]);
   });
 });
