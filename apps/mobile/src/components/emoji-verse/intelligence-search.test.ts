@@ -1,5 +1,8 @@
 import type { EmojiCategory, EmojiItem } from "@natsuneko-laboratory/react-native-emoji-verse";
 import { renderHook } from "@testing-library/react-native";
+import { createStore, Provider } from "jotai";
+import { createElement, type ReactNode } from "react";
+import { accountAtom } from "@/models/atoms/account";
 import { matchPickerEmojis, useIntelligenceSearchProvider } from "./intelligence-search";
 
 const unicode = (emoji: string): EmojiItem => ({ id: emoji, type: { kind: "unicode", emoji }, keywords: [] });
@@ -96,5 +99,55 @@ describe("useIntelligenceSearchProvider", () => {
 
     await expect(result.current.search("雨", { signal })).resolves.toMatchObject({ items: [] });
     expect(result.current.peek?.("雨")).toBeUndefined();
+  });
+
+  describe("トークン", () => {
+    const ok = { ok: true, status: 200, json: async () => ({ results: [{ emoji: "🍺" }] }) };
+    const unauthorized = { ok: false, status: 401, json: async () => ({}) };
+    const authorization = (call: number) => fetchMock.mock.calls[call][1].headers?.Authorization;
+
+    const renderWithClient = (client: { accessToken?: string; refresh: jest.Mock }) => {
+      const store = createStore();
+      store.set(accountAtom, { user: { id: "me" }, credential: { client } } as never);
+      return renderHook(() => useIntelligenceSearchProvider(categories), {
+        wrapper: ({ children }: { children: ReactNode }) => createElement(Provider, { store }, children),
+      });
+    };
+
+    it("ログインしていなければ付けない", async () => {
+      fetchMock.mockResolvedValue(ok);
+      const { result } = await renderHook(() => useIntelligenceSearchProvider(categories));
+
+      await result.current.search("晴れ", { signal });
+      expect(authorization(0)).toBeUndefined();
+    });
+
+    it("ログインしていれば付ける", async () => {
+      fetchMock.mockResolvedValue(ok);
+      const { result } = await renderWithClient({ accessToken: "token", refresh: jest.fn() });
+
+      await result.current.search("くもり", { signal });
+      expect(authorization(0)).toBe("Bearer token");
+    });
+
+    it("401 のときは、トークンを更新して 1 回だけ送り直す", async () => {
+      fetchMock.mockResolvedValueOnce(unauthorized).mockResolvedValueOnce(ok);
+      const refresh = jest.fn().mockResolvedValue({ accessToken: "new-token", refreshToken: "r" });
+      const { result } = await renderWithClient({ accessToken: "old-token", refresh });
+
+      await expect(result.current.search("雪", { signal })).resolves.toEqual({ items: [unicode("🍺")] });
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(authorization(1)).toBe("Bearer new-token");
+    });
+
+    it("トークンを更新できなければ、付けずに送り直す", async () => {
+      fetchMock.mockResolvedValueOnce(unauthorized).mockResolvedValueOnce(ok);
+      const refresh = jest.fn().mockRejectedValue(new Error("refresh failed"));
+      const { result } = await renderWithClient({ accessToken: "old-token", refresh });
+
+      await expect(result.current.search("霧", { signal })).resolves.toEqual({ items: [unicode("🍺")] });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(authorization(1)).toBeUndefined();
+    });
   });
 });
