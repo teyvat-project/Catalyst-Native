@@ -10,6 +10,7 @@ patchedDependencies:
   react-native-image-crop-picker@0.51.1: patches/react-native-image-crop-picker@0.51.1.patch
   react-native-config@1.7.2: patches/react-native-config@1.7.2.patch
   expo-modules-core@58.0.23: patches/expo-modules-core@58.0.23.patch
+  "@natsuneko-laboratory/react-native-emoji-verse@0.1.1": patches/@natsuneko-laboratory__react-native-emoji-verse@0.1.1.patch
 
 # @react-native/jest-preset は require.resolve("react-native") するが依存に宣言していないため、
 # isolated リンカーだと別アプリ (apps/macos 等) の react-native が解決されてしまう
