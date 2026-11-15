@@ -13,9 +13,10 @@ import {
   updateNewItem,
   type EditablePin,
 } from "@/models/epiclese-pin-editor";
+import { recordRecentItems } from "@/models/epiclese-recent-items";
 import type { Media } from "@/models/sdk-types";
 import type { EpicleseAuthorResponse, EpiclesePlatformResponse } from "@natsuneko-laboratory/catalyst-sdk";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Modal, Platform, ScrollView } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -53,6 +54,12 @@ export const PinEditorModal = ({ visible, media, pins, platform, platforms, onCa
   // アイテム検索の作者の絞り込み。ピンごとではなく、モーダルを開いている間は持ち越す
   const [authorFilter, setAuthorFilter] = useState<EpicleseAuthorResponse | null>(null);
   const activePin = activeIndex !== null ? draft[activeIndex] : undefined;
+  // iOS の Modal は閉じるアニメーションの間も中身を描画し続ける。キャンセルで閉じたあとに、
+  // 最近使ったアイテムや作者を取り直した結果が届いても、選ばず履歴にも入れない (ワールドのピッカーと同じ)
+  const visibleRef = useRef(visible);
+  useEffect(() => {
+    visibleRef.current = visible;
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -209,6 +216,8 @@ export const PinEditorModal = ({ visible, media, pins, platform, platforms, onCa
               authorFilter={authorFilter}
               onPickAuthorFilter={() => setStep("author-filter")}
               onSelect={(item) => {
+                if (!visibleRef.current) return;
+                recordRecentItems([item]).catch(() => {});
                 updateActive((pin) => applyItem(pin, item));
                 setActiveIndex(null);
                 setStep("canvas");
@@ -240,10 +249,13 @@ export const PinEditorModal = ({ visible, media, pins, platform, platforms, onCa
                 },
               }}
               onBack={() => setStep("item-search")}
+              selectedId={authorFilter?.id}
               onSelect={(author) => {
+                if (!visibleRef.current) return;
                 setAuthorFilter(author);
                 setStep("item-search");
               }}
+              showsRecent
             />
           )}
           {step === "author-search" && platform && (
@@ -251,6 +263,7 @@ export const PinEditorModal = ({ visible, media, pins, platform, platforms, onCa
               platform={platform}
               title="作者"
               onBack={() => setStep("item-create")}
+              selectedId={activePin?.author?.id}
               onSelect={selectAuthor}
               onRegister={() => setStep("author-form")}
             />
