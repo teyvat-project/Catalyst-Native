@@ -143,8 +143,6 @@ export function useIntelligenceSearchProvider(categories: readonly EmojiCategory
       icon: "sparkles",
       placeholder: "気持ちや場面で探す（例：仕事おわった）",
       idleMessage: "言い回しや場面を入力して検索すると、意味の近い絵文字を探します。",
-      // かな漢字変換の途中の読みで探さないよう、また短い時間に探しすぎて制限されないよう、確定してから探す
-      searchOn: "submit",
       submitLabel: (query) => `「${query}」で探す`,
       emptyMessage: "見つかりませんでした",
       errorMessage: "絵文字を探せませんでした。しばらくしてからもう一度お試しください。",

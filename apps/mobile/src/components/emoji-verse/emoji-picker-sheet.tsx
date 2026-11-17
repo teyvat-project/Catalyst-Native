@@ -51,7 +51,7 @@ export const EmojiPickerSheet = forwardRef<EmojiPickerSheetRef, Props>(
         if (searchContextId === undefined) return;
         store.set(intelligenceSearchQueryAtom, (prev) => {
           if (query !== "") return { contextId: searchContextId, query };
-          // 開いただけでは消さない。消すのは、同じ投稿で言葉を消したり、ほかのタブに移ったりしたときと、別の投稿で探したとき
+          // 消すのは、同じ投稿で言葉を消したり、ほかのタブに移ったりしたときと、別の投稿で探したとき。別の投稿で覚えた言葉は消さない
           return prev?.contextId === searchContextId ? null : prev;
         });
       },
