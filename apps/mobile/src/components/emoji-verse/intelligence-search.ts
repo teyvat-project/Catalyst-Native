@@ -128,7 +128,8 @@ async function searchByMeaning(
   // キーワードの一致だけで探した結果は、paimon が直ったらすぐ探し直せるよう覚えない
   if (response.degraded !== true) {
     cache.delete(query);
-    cache.set(query, { response, at: Date.now() });
+    // 返す結果も一緒に覚え、直後の peek で同じオブジェクトを返す (置き換え直さず、一覧も描き直させない)
+    cache.set(query, { response, at: Date.now(), result: { categories, value: result } });
     // Map は入れた順に並ぶので、先頭がいちばん古い
     if (cache.size > CACHE_SIZE) cache.delete(cache.keys().next().value!);
   }
