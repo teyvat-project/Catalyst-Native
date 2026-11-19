@@ -846,7 +846,7 @@ export default function StatusDetailsPage() {
       />
 
       {/* Reaction picker sheet */}
-      <EmojiPickerSheet ref={emojiPickerRef} onReact={handleReact} />
+      <EmojiPickerSheet ref={emojiPickerRef} onReact={handleReact} searchContextId={id} />
 
       {/* Action menu */}
       <BottomSheetModal

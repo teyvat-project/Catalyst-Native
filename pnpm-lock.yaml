@@ -186,8 +186,8 @@ catalogs:
       specifier: 0.1.2
       version: 0.1.2
     '@natsuneko-laboratory/react-native-emoji-verse':
-      specifier: 0.1.1
-      version: 0.1.1
+      specifier: 0.2.0
+      version: 0.2.0
     '@natsuneko-laboratory/react-native-twitter-text':
       specifier: 0.1.0
       version: 0.1.0
@@ -433,7 +433,7 @@ importers:
         version: link:../../packages/carousel-viewer
       '@natsuneko-laboratory/react-native-emoji-verse':
         specifier: 'catalog:'
-        version: 0.1.1(76808c07d4e823bfeeb2ea0f2d44b9da)
+        version: 0.2.0(bfdca1d7c55c93a264a65064084e3560)
       '@natsuneko-laboratory/react-native-twitter-text':
         specifier: 'catalog:'
         version: 0.1.0(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.1.0(supports-color@8.1.1)(typescript@6.0.3))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
@@ -2875,15 +2875,18 @@ packages:
       react-native-windows:
         optional: true
 
-  '@natsuneko-laboratory/react-native-emoji-verse@0.1.1':
-    resolution: {integrity: sha512-VBDBNOQrbxEQfR+MyJg7uIMjNK+f5azyYmXugSlPUXSvExSf3d8WIl1UVHkpQEicW2UXARVizHTJVdFdWPS5sw==}
+  '@natsuneko-laboratory/react-native-emoji-verse@0.2.0':
+    resolution: {integrity: sha512-u3xeNknZb7wKvq+uGoW6svITcCnEOfPmJ+vVi0eE3ZV87t5T6eyIyW6mDtc+vXXBcug1h3X+5m307p+JnM7G4A==}
     peerDependencies:
       '@gorhom/bottom-sheet': '>=5'
       lucide-react-native: '>=1'
       react: '>=18'
       react-native: '>=0.73'
+      react-native-gesture-handler: '>=2'
     peerDependenciesMeta:
       '@gorhom/bottom-sheet':
+        optional: true
+      react-native-gesture-handler:
         optional: true
 
   '@natsuneko-laboratory/react-native-twitter-text@0.1.0':
@@ -13654,13 +13657,14 @@ snapshots:
     optionalDependencies:
       react-native-macos: 0.81.9(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.0.0(supports-color@8.1.1)(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react-native@0.81.6(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.0.0(supports-color@8.1.1)(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.1.4)(supports-color@8.1.1))(react@19.1.4)(supports-color@8.1.1)
 
-  '@natsuneko-laboratory/react-native-emoji-verse@0.1.1(76808c07d4e823bfeeb2ea0f2d44b9da)':
+  '@natsuneko-laboratory/react-native-emoji-verse@0.2.0(bfdca1d7c55c93a264a65064084e3560)':
     dependencies:
       lucide-react-native: 1.45.0(react-native-svg@15.16.0(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.1.0(supports-color@8.1.1)(typescript@6.0.3))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.1.0(supports-color@8.1.1)(typescript@6.0.3))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
       react: 19.3.0
       react-native: 0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.1.0(supports-color@8.1.1)(typescript@6.0.3))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1)
     optionalDependencies:
       '@gorhom/bottom-sheet': 5.2.14(6bcd0f4f5b4933f2330b3706e8d19f20)
+      react-native-gesture-handler: 3.3.0(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.1.0(supports-color@8.1.1)(typescript@6.0.3))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
 
   '@natsuneko-laboratory/react-native-twitter-text@0.1.0(react-native@0.81.6(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.0.0(supports-color@8.1.1)(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.1.4)(supports-color@8.1.1))(react@19.1.4)':
     dependencies:

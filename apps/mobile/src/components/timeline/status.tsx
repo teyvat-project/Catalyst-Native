@@ -284,7 +284,7 @@ export const TimelineStatus = memo(({ status, renderingMode = "twtr" }: Props) =
 
       <Pressable accessibilityRole="button" className="h-3" onPress={navigateToStatus} />
 
-      <EmojiPickerSheet ref={emojiPickerRef} onReact={handleReact} />
+      <EmojiPickerSheet ref={emojiPickerRef} onReact={handleReact} searchContextId={status.id} />
     </View>
   );
 });
