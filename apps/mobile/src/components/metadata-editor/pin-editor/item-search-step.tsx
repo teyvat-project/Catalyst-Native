@@ -2,19 +2,25 @@ import { CatalystListItem, CatalystSearchField, CatalystText } from "@/component
 import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import { clientAtom } from "@/models/atoms/credential";
 import { ITEM_TYPE_LABELS, type EditablePin } from "@/models/epiclese-pin-editor";
-import { forgetRecentItem, loadRecentItems, recordRecentItems, type RecentItem } from "@/models/epiclese-recent-items";
+import { forgetRecentItem, loadRecentItems, type RecentItem } from "@/models/epiclese-recent-items";
 import type { EpicleseAuthorResponse, EpicleseItemResponse } from "@natsuneko-laboratory/catalyst-sdk";
 import { useAtomValue } from "jotai";
-import { Check } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Pressable, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { withUniwind } from "uniwind";
 
 import { MetadataRow } from "../metadata-row";
 import { PickerHeader } from "../picker-header";
-
-const UniCheck = withUniwind(Check);
+import {
+  forgetOnLongPress,
+  PICK_LIST_CLASS,
+  PICK_ROW_CLASS,
+  PickGroup,
+  PickSeparator,
+  PickTrailing,
+  SectionLabel,
+  useRefetchOnPick,
+} from "../recent-picks";
 
 type Props = {
   pin: EditablePin;
@@ -70,56 +76,36 @@ export const ItemSearchStep = ({
   const recentIds = new Set(shownRecentItems.map((item) => item.id));
   const listItems = results.filter((item) => !recentIds.has(item.id));
 
-  const [verifyingId, setVerifyingId] = useState<string | null>(null);
-  // 押した直後の 2 回目の押下は再描画より先に届くことがあるので、確かめている最中かは ref で見る
-  const isVerifyingRef = useRef(false);
-  // 確かめている間に戻るなどして画面を離れたら、あとから届いた結果でピンを書き換えない
-  useEffect(
-    () => () => {
-      isVerifyingRef.current = false;
+  const forgetItem = (id: string) => {
+    forgetRecentItem(id).catch(() => {});
+    setRecentItems((prev) => prev.filter((recent) => recent.id !== id));
+  };
+
+  // 検索結果のアイテムはそのまま、最近使ったアイテムで検索結果に無いものは取り直してから選ぶ
+  const { verifyingId, pick } = useRefetchOnPick({
+    kind: "アイテム",
+    fetch: async (id) => {
+      const { data, response } = await client.epiclese.v1.items.id.get({ path: { id } });
+      return { data: data?.item, response };
     },
-    [],
-  );
+    onGone: forgetItem,
+  });
+  const handleSelect = (item: RecentItem) => pick(item.id, latest.get(item.id), onSelect);
 
-  const select = (item: EpicleseItemResponse) => {
-    recordRecentItems([item]).catch(() => {});
-    onSelect(item);
-  };
-
-  // 最近使ったアイテムは、あとからサーバーで削除・非表示になっていることがある。
-  // 検索結果に入っていないものは取り直して確かめ、無くなっていれば履歴から外す。確かめている間はほかの行も受け付けない
-  const handleSelect = async (item: RecentItem) => {
-    if (isVerifyingRef.current) return;
-    const fresh = latest.get(item.id);
-    if (fresh) return select(fresh);
-
-    isVerifyingRef.current = true;
-    setVerifyingId(item.id);
-    const result = await client.epiclese.v1.items.id.get({ path: { id: item.id } }).catch(() => null);
-    if (!isVerifyingRef.current) return;
-    isVerifyingRef.current = false;
-    setVerifyingId(null);
-
-    if (result?.data) return select(result.data.item);
-    if (result?.response?.status === 404) {
-      forgetRecentItem(item.id).catch(() => {});
-      setRecentItems((prev) => prev.filter((recent) => recent.id !== item.id));
-      Alert.alert("このアイテムは削除されています", "最近使ったアイテムから外しました");
-      return;
-    }
-    Alert.alert("エラー", "アイテムを読み込めませんでした");
-  };
-
-  const renderItem = (item: RecentItem) => {
+  const renderItem = (item: RecentItem, isRecent: boolean) => {
     const isSelected = item.id === pin.reference;
 
     return (
       <CatalystListItem
         key={item.id}
         onPress={() => void handleSelect(item)}
+        {...(isRecent &&
+          item.id !== verifyingId &&
+          forgetOnLongPress({ name: item.name, section: "最近使ったアイテム", onForget: () => forgetItem(item.id) }))}
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected }}
-        className="px-4"
+        divided={false}
+        className={`px-4 ${PICK_ROW_CLASS}`}
       >
         {/* 名前が長くても作者名が押し出されないよう、作者名はカテゴリと同じ行に出す */}
         <View className="min-w-0 flex-1">
@@ -132,11 +118,7 @@ export const ItemSearchStep = ({
               : ITEM_TYPE_LABELS[item.type]}
           </CatalystText>
         </View>
-        {item.id === verifyingId ? (
-          <ActivityIndicator colorClassName="accent-light-tint dark:accent-dark-tint" />
-        ) : (
-          isSelected && <UniCheck size={20} className="text-light-tint dark:text-dark-tint" />
-        )}
+        <PickTrailing verifying={item.id === verifyingId} selected={isSelected} />
       </CatalystListItem>
     );
   };
@@ -170,12 +152,14 @@ export const ItemSearchStep = ({
           keyExtractor={(item) => item.id}
           keyboardShouldPersistTaps="handled"
           // 末尾の行がホームインジケーターに重ならないよう、下の安全領域ぶん余白を取る
+          className={PICK_LIST_CLASS}
+          ItemSeparatorComponent={PickSeparator}
           contentContainerStyle={{ paddingBottom: insets.bottom }}
           ListHeaderComponent={
             shownRecentItems.length > 0 ? (
               <View>
-                <SectionLabel>最近使ったアイテム</SectionLabel>
-                {shownRecentItems.map(renderItem)}
+                <SectionLabel first>最近使ったアイテム</SectionLabel>
+                <PickGroup>{shownRecentItems.map((item) => renderItem(item, true))}</PickGroup>
                 {(isLoading || listItems.length > 0) && <SectionLabel>アイテム一覧</SectionLabel>}
               </View>
             ) : undefined
@@ -199,15 +183,9 @@ export const ItemSearchStep = ({
               </Pressable>
             </View>
           }
-          renderItem={({ item }) => renderItem(item)}
+          renderItem={({ item }) => renderItem(item, false)}
         />
       )}
     </>
   );
 };
-
-const SectionLabel = ({ children }: { children: string }) => (
-  <CatalystText variant="caption" tone="muted" accessibilityRole="header" className="px-4 pt-3 pb-1 font-semibold">
-    {children}
-  </CatalystText>
-);

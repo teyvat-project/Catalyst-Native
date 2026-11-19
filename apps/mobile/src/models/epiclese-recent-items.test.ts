@@ -11,6 +11,7 @@ import {
   recordRecentItems,
   type RecentItem,
 } from "./epiclese-recent-items";
+import { loadRecentAuthors } from "./epiclese-recent-authors";
 
 jest.mock("@react-native-async-storage/async-storage");
 
@@ -20,6 +21,9 @@ const item = (id: string): RecentItem => ({
   name: `item ${id}`,
   author: { id: "author-1", name: "Shop" },
 });
+
+// 選んだときに渡す形。作者も記録するので platformIdentifier まで持つ
+const picked = (id: string) => ({ ...item(id), author: { ...item(id).author, platformIdentifier: "shop" } });
 
 const response = (id: string): EpicleseItemResponse => ({
   ...item(id),
@@ -93,14 +97,14 @@ describe("pickCreatedItems", () => {
 
 describe("recent items storage", () => {
   it("記録したアイテムを新しい順に読み出す", async () => {
-    await recordRecentItems([item("a")]);
-    await recordRecentItems([item("b")]);
+    await recordRecentItems([picked("a")]);
+    await recordRecentItems([picked("b")]);
 
     await expect(loadRecentItems()).resolves.toEqual([item("b"), item("a")]);
   });
 
   it("続けて記録しても、先に記録したものを消さない", async () => {
-    await Promise.all([recordRecentItems([item("a")]), recordRecentItems([item("b")]), loadRecentItems()]);
+    await Promise.all([recordRecentItems([picked("a")]), recordRecentItems([picked("b")]), loadRecentItems()]);
 
     await expect(loadRecentItems()).resolves.toEqual([item("b"), item("a")]);
   });
@@ -108,15 +112,32 @@ describe("recent items storage", () => {
   it("保存の結果が想定と違う形でも、例外を投げずに失敗として返す", async () => {
     const record = () => recordCreatedItems([{ id: "m1", reference: [] }], null as never);
 
-    expect(record).not.toThrow();
     await expect(record()).rejects.toThrow();
     // 失敗したあとも、続く読み書きは止まらない
-    await recordRecentItems([item("a")]);
+    await recordRecentItems([picked("a")]);
     await expect(loadRecentItems()).resolves.toEqual([item("a")]);
   });
 
+  it("アイテムを記録すると、その作者も最近使った作者に入れる", async () => {
+    await recordRecentItems([picked("a")]);
+
+    await expect(loadRecentAuthors()).resolves.toEqual([{ id: "author-1", name: "Shop", platformIdentifier: "shop" }]);
+  });
+
+  it("新しく作ったアイテムの作者も記録する", async () => {
+    const pin = (reference?: string) => ({ x: 0, y: 0, order: 0, type: "cloth" as const, name: "", reference });
+    const saved = (id: string) => ({ ...response(id), x: 0, y: 0, order: 0, reference: id });
+
+    await recordCreatedItems([{ id: "m1", reference: [pin()] }], {
+      m1: { reference: [saved("new")] },
+    } as unknown as EpicleseStatusMetadataResponse);
+
+    await expect(loadRecentItems()).resolves.toEqual([item("new")]);
+    await expect(loadRecentAuthors()).resolves.toEqual([{ id: "author-1", name: "Shop", platformIdentifier: "shop" }]);
+  });
+
   it("外したアイテムは読み出さない", async () => {
-    await recordRecentItems([item("a"), item("b")]);
+    await recordRecentItems([picked("a"), picked("b")]);
     await forgetRecentItem("a");
 
     await expect(loadRecentItems()).resolves.toEqual([item("b")]);

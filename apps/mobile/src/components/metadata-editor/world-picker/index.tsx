@@ -1,6 +1,7 @@
 import { toEditableWorld, type EditableWorld } from "@/models/epiclese-metadata-editor";
+import { recordRecentWorld } from "@/models/epiclese-recent-worlds";
 import type { EpiclesePlatformResponse, EpicleseWorldResponse } from "@natsuneko-laboratory/catalyst-sdk";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { withUniwind } from "uniwind";
@@ -36,7 +37,22 @@ export const WorldPickerModal = ({ visible, platform, platforms, value, onCancel
     setDraft(EMPTY_WORLD_DRAFT);
   }, [visible]);
 
-  const handleSelectWorld = useCallback((world: EpicleseWorldResponse) => onSelect(toEditableWorld(world)), [onSelect]);
+  // iOS の Modal は閉じるアニメーションの間も中身を描画し続ける。キャンセルやスワイプで閉じたあとに、
+  // 最近使ったワールドを取り直した結果が届いても選ばない
+  const visibleRef = useRef(visible);
+  useEffect(() => {
+    visibleRef.current = visible;
+  }, [visible]);
+
+  // 検索から選んだときも、登録して選んだときも、最近使ったワールドに入れる
+  const handleSelectWorld = useCallback(
+    (world: EpicleseWorldResponse) => {
+      if (!visibleRef.current) return;
+      recordRecentWorld(platform.id, world).catch(() => {});
+      onSelect(toEditableWorld(world));
+    },
+    [onSelect, platform.id],
+  );
 
   // Android の戻る操作はモーダル全体ではなく 1 つ前のステップに戻す (登録の入力を失わないように)
   const handleRequestClose = useCallback(() => {
@@ -90,6 +106,7 @@ export const WorldPickerModal = ({ visible, platform, platforms, value, onCancel
           <AuthorSearchStep
             platform={platform}
             onBack={() => setStep("world-form")}
+            selectedId={draft.author?.id}
             onSelect={(author) => {
               setDraft((prev) => ({ ...prev, author }));
               setStep("world-form");
