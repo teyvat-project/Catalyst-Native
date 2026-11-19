@@ -12,16 +12,23 @@ const APP_LINK_PATH_PREFIXES = [
   "/themes/",
   "/items/",
   "/user/",
+  "/archive/",
   "/@",
 ];
 
+// 前方一致だと `/archives` のような別のページまで受け取ってしまうものは、完全一致で登録する
+const APP_LINK_EXACT_PATHS = ["/archive"];
+
+/** @param {string[]} paths */
+const withLocales = (paths) => [...paths, ...paths.flatMap((path) => [`/ja${path}`, `/en${path}`])];
+
 const APP_LINK_DATA = [
-  ...APP_LINK_PATH_PREFIXES,
-  ...APP_LINK_PATH_PREFIXES.flatMap((path) => [`/ja${path}`, `/en${path}`]),
-].map((pathPrefix) => ({
+  ...withLocales(APP_LINK_PATH_PREFIXES).map((pathPrefix) => ({ pathPrefix })),
+  ...withLocales(APP_LINK_EXACT_PATHS).map((path) => ({ path })),
+].map((matcher) => ({
   scheme: "https",
   host: "catalyst.natsuneko.com",
-  pathPrefix,
+  ...matcher,
 }));
 
 /**
