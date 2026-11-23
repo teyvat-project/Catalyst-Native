@@ -26,6 +26,8 @@ const author = { id: "a-1", platformIdentifier: "usr_1", platform: platformObj, 
 const responseItem = (overrides: Partial<ResponseItem>): ResponseItem => ({
   platform: null,
   world: null,
+  group: null,
+  event: null,
   users: [],
   reference: [],
   ...overrides,
@@ -38,7 +40,16 @@ describe("toEditableMetadata", () => {
     const response: EpicleseStatusMetadataResponse = {
       m1: {
         platform: "VRChat",
-        world: { id: "w-1", platformIdentifier: "wrld_1", platform: platformObj, name: "Home", author },
+        world: {
+          id: "w-1",
+          platformIdentifier: "wrld_1",
+          platformOwnerIdentifier: null,
+          platform: platformObj,
+          name: "Home",
+          author,
+        },
+        group: null,
+        event: null,
         users: [{ id: "u-1", screenName: "a", displayName: "A", profile: null }],
         reference: [
           {
@@ -124,7 +135,14 @@ describe("toEditableMetadata", () => {
       [{ id: "m1" }],
       {
         m1: responseItem({
-          world: { id: "w-1", platformIdentifier: "wrld_1", platform: null, name: "Home", author: null },
+          world: {
+            id: "w-1",
+            platformIdentifier: "wrld_1",
+            platformOwnerIdentifier: null,
+            platform: null,
+            name: "Home",
+            author: null,
+          },
         }),
       },
       platforms,
@@ -276,6 +294,7 @@ describe("toEditableWorld", () => {
       toEditableWorld({
         id: "w-1",
         platformIdentifier: "wrld_1",
+        platformOwnerIdentifier: null,
         platform: null,
         name: "Home",
         author: { ...author, platform: null },
@@ -291,8 +310,14 @@ describe("toEditableWorld", () => {
 
   it("作者が無ければ null", () => {
     expect(
-      toEditableWorld({ id: "w-1", platformIdentifier: "wrld_1", platform: platformObj, name: "Home", author: null })
-        .author,
+      toEditableWorld({
+        id: "w-1",
+        platformIdentifier: "wrld_1",
+        platformOwnerIdentifier: null,
+        platform: platformObj,
+        name: "Home",
+        author: null,
+      }).author,
     ).toBeNull();
   });
 });
@@ -411,6 +436,7 @@ describe("ワールドの差し替え (往復)", () => {
       world: toEditableWorld({
         id: "w-9",
         platformIdentifier: "wrld_9",
+        platformOwnerIdentifier: null,
         platform: platformObj,
         name: "Other",
         author: null,
