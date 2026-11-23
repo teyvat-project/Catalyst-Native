@@ -165,8 +165,8 @@ settings:
 catalogs:
   default:
     '@natsuneko-laboratory/catalyst-sdk':
-      specifier: 2026.10.31-beta.2
-      version: 2026.10.31-beta.2
+      specifier: 2026.11.23-beta.1
+      version: 2026.11.23-beta.1
     '@natsuneko-laboratory/fleet-renderer-core':
       specifier: 0.2.0
       version: 0.2.0
@@ -279,7 +279,7 @@ importers:
     dependencies:
       '@natsuneko-laboratory/catalyst-sdk':
         specifier: 'catalog:'
-        version: 2026.10.31-beta.2
+        version: 2026.11.23-beta.1
       '@natsuneko-laboratory/fleet-renderer-core':
         specifier: 'catalog:'
         version: 0.2.0
@@ -418,7 +418,7 @@ importers:
         version: 0.1.5(expo@58.0.16)
       '@natsuneko-laboratory/catalyst-sdk':
         specifier: 'catalog:'
-        version: 2026.10.31-beta.2
+        version: 2026.11.23-beta.1
       '@natsuneko-laboratory/fleet-renderer-core':
         specifier: 'catalog:'
         version: 0.2.0
@@ -713,7 +713,7 @@ importers:
     dependencies:
       '@natsuneko-laboratory/catalyst-sdk':
         specifier: 'catalog:'
-        version: 2026.10.31-beta.2
+        version: 2026.11.23-beta.1
       '@natsuneko-laboratory/fleet-renderer-core':
         specifier: 'catalog:'
         version: 0.2.0
@@ -2825,8 +2825,8 @@ packages:
       '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.4
       '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.4
 
-  '@natsuneko-laboratory/catalyst-sdk@2026.10.31-beta.2':
-    resolution: {integrity: sha512-eN/acmVDGm796XeZNrn0axZV4ZzyoCrcuo3tJMZljM69I3vQLxE1vU7/IuhjQHzMfilHBSwnnfEz2w56Mgs1VQ==}
+  '@natsuneko-laboratory/catalyst-sdk@2026.11.23-beta.1':
+    resolution: {integrity: sha512-6BgW/h+g17nfpIq/qVCQnn7zDT70g1wT5rclnDAARWJ9AeSB/vrKh+Bd/7JaJYiLlQHXcxIxktIzgFLJjl85DA==}
 
   '@natsuneko-laboratory/fleet-renderer-core@0.1.0':
     resolution: {integrity: sha512-Ee3oWN8tb0UC6yS+XI3U//2wr3Eev/fTg4pxI0kp/PjxntSqO8vb94vAG2BIBxjM7S2n9v26zy7pnbGEyanbWw==}
@@ -6983,6 +6983,7 @@ packages:
   http-call@5.3.0:
     resolution: {integrity: sha512-ahwimsC23ICE4kPl9xTBjKB4inbRaeLyZeRunC/1Jy/Z6X8tv22MEAjK+KBOMSVLaqXPTTmd8638waVIKLGx2w==}
     engines: {node: '>=8.0.0'}
+    deprecated: Renamed to @heroku/http-call — please install @heroku/http-call instead.
 
   http-errors@2.0.1:
     resolution: {integrity: sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==}
@@ -13588,7 +13589,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.4
     optional: true
 
-  '@natsuneko-laboratory/catalyst-sdk@2026.10.31-beta.2': {}
+  '@natsuneko-laboratory/catalyst-sdk@2026.11.23-beta.1': {}
 
   '@natsuneko-laboratory/fleet-renderer-core@0.1.0': {}
 
