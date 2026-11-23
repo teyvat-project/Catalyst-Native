@@ -1,6 +1,7 @@
 import { CatalystAvatar, CatalystText } from "@/components/design-system";
 import { EmojiPickerSheet, type EmojiPickerSheetRef } from "@/components/emoji-verse";
 import { ReactionBar } from "@/components/reaction-bar";
+import { LockedStatusCard } from "@/components/status/locked-status-card";
 import { StatusText } from "@/components/status/text";
 import { StatusVisibilityBadge } from "@/components/status/visibility-badge";
 import { MediaCarousel } from "@/components/ui/media-carousel";
@@ -35,6 +36,10 @@ type StatusWithReactions = Omit<CatalystStatus, "reactions"> & {
   privacy?: CatalystStatusPrivacy;
 };
 
+type StatusWithLock = {
+  locked?: boolean;
+};
+
 type Props = {
   status: CatalystStatus | CatalystStatusV1_1;
   renderingMode?: StatusRenderingMode;
@@ -55,6 +60,21 @@ const UniRepeat2 = withUniwind(Repeat2);
 const UniSparkles = withUniwind(Sparkles);
 
 export const TimelineStatus = memo(({ status, renderingMode = "twtr" }: Props) => {
+  // 合言葉付きでまだ解除していない投稿は、本文と画像が抜かれて届く
+  if ((status as StatusWithLock).locked) {
+    return (
+      <LockedStatusCard
+        status={status}
+        renderUnlocked={(unlocked) => <UnlockedStatus status={unlocked} renderingMode={renderingMode} />}
+      />
+    );
+  }
+
+  return <UnlockedStatus status={status} renderingMode={renderingMode} />;
+});
+TimelineStatus.displayName = "TimelineStatus";
+
+const UnlockedStatus = ({ status, renderingMode = "twtr" }: Props) => {
   const router = useRouter();
   const account = useAtomValue(accountAtom);
   const { subscribe, unsubscribe } = useStreamingReactions();
@@ -287,5 +307,4 @@ export const TimelineStatus = memo(({ status, renderingMode = "twtr" }: Props) =
       <EmojiPickerSheet ref={emojiPickerRef} onReact={handleReact} searchContextId={status.id} />
     </View>
   );
-});
-TimelineStatus.displayName = "TimelineStatus";
+};

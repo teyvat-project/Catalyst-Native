@@ -1,4 +1,5 @@
 import type {
+  GetCatalystV11StatusByIdErrors,
   GetCatalystV11StatusByIdResponse,
   GetCatalystV12TimelineHomeResponse,
   GetCatalystV1ActivitypubSettingsResponse,
@@ -34,6 +35,8 @@ export type CatalystStatus = GetCatalystV1TimelineHomeResponse["statuses"][numbe
 export type CatalystStatusV1_2 = GetCatalystV12TimelineHomeResponse[number];
 export type CatalystStatusPrivacy = NonNullable<CatalystStatusV1_1["privacy"]>;
 export type Media = CatalystStatusV1_1["medias"][number];
+// 投稿詳細が 403 で返る (フォロワー限定・合言葉付きなど) ときの理由と投稿者
+export type CatalystStatusDenied = GetCatalystV11StatusByIdErrors[403]["denied"];
 
 export type CatalystAlbum = GetCatalystV1AlbumByIdByIdResponse;
 export type CatalystSmartAlbum = GetCatalystV1SmartAlbumByIdByIdResponse;
