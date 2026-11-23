@@ -165,8 +165,8 @@ settings:
 catalogs:
   default:
     '@natsuneko-laboratory/catalyst-sdk':
-      specifier: 2026.11.23-beta.1
-      version: 2026.11.23-beta.1
+      specifier: 2026.11.23-beta.2
+      version: 2026.11.23-beta.2
     '@natsuneko-laboratory/fleet-renderer-core':
       specifier: 0.2.0
       version: 0.2.0
@@ -279,7 +279,7 @@ importers:
     dependencies:
       '@natsuneko-laboratory/catalyst-sdk':
         specifier: 'catalog:'
-        version: 2026.11.23-beta.1
+        version: 2026.11.23-beta.2
       '@natsuneko-laboratory/fleet-renderer-core':
         specifier: 'catalog:'
         version: 0.2.0
@@ -418,7 +418,7 @@ importers:
         version: 0.1.5(expo@58.0.16)
       '@natsuneko-laboratory/catalyst-sdk':
         specifier: 'catalog:'
-        version: 2026.11.23-beta.1
+        version: 2026.11.23-beta.2
       '@natsuneko-laboratory/fleet-renderer-core':
         specifier: 'catalog:'
         version: 0.2.0
@@ -713,7 +713,7 @@ importers:
     dependencies:
       '@natsuneko-laboratory/catalyst-sdk':
         specifier: 'catalog:'
-        version: 2026.11.23-beta.1
+        version: 2026.11.23-beta.2
       '@natsuneko-laboratory/fleet-renderer-core':
         specifier: 'catalog:'
         version: 0.2.0
@@ -2825,8 +2825,8 @@ packages:
       '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.4
       '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.4
 
-  '@natsuneko-laboratory/catalyst-sdk@2026.11.23-beta.1':
-    resolution: {integrity: sha512-6BgW/h+g17nfpIq/qVCQnn7zDT70g1wT5rclnDAARWJ9AeSB/vrKh+Bd/7JaJYiLlQHXcxIxktIzgFLJjl85DA==}
+  '@natsuneko-laboratory/catalyst-sdk@2026.11.23-beta.2':
+    resolution: {integrity: sha512-+b9KYZ418iZii14YTZCnWzjkimyLOpXUXyyXL9lnCSF9vcXbZ5JbTM0PE45ygL9o33+8MChaUJ4bO7p5FUFqpA==}
 
   '@natsuneko-laboratory/fleet-renderer-core@0.1.0':
     resolution: {integrity: sha512-Ee3oWN8tb0UC6yS+XI3U//2wr3Eev/fTg4pxI0kp/PjxntSqO8vb94vAG2BIBxjM7S2n9v26zy7pnbGEyanbWw==}
@@ -13589,7 +13589,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.4
     optional: true
 
-  '@natsuneko-laboratory/catalyst-sdk@2026.11.23-beta.1': {}
+  '@natsuneko-laboratory/catalyst-sdk@2026.11.23-beta.2': {}
 
   '@natsuneko-laboratory/fleet-renderer-core@0.1.0': {}
 
