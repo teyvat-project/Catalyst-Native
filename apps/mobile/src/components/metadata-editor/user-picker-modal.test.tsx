@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react-native";
 import { createStore, Provider } from "jotai";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
@@ -85,6 +85,13 @@ const search = async (q: string) => {
 };
 
 let alert: jest.SpyInstance;
+
+// 最初の描画で、コンポーネントが使うモジュールの変換と読み込みがまとめて走る (babel-preset-expo の lazy imports)。
+// jest のキャッシュが無い CI では数秒かかり、最初のテストだけ 5 秒の制限を超えることがあるので、先に一度描画しておく
+beforeAll(async () => {
+  await renderPicker();
+  await cleanup();
+}, 30_000);
 
 beforeEach(() => {
   jest.useFakeTimers();
