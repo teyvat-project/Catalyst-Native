@@ -4,6 +4,7 @@ import { EmojiPickerView } from "@/components/emoji-verse";
 import { useDefaultCategories } from "@/components/emoji-verse/emoji-data";
 import { FleetColorPickerButton, FleetColorPickerModal } from "@/components/fleet/color-picker-modal";
 import { resolveStickerImageUrl } from "@/components/fleet/content";
+import { uploadImage, UnsupportedImageError } from "@/lib/media-upload";
 import { cn } from "@/lib/utils";
 import { accountAtom } from "@/models/atoms/account";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
@@ -777,10 +778,8 @@ export default function FleetComposerScreen() {
     setIsSubmitting(true);
     try {
       const client = account.credential.client;
-      const { data: uploadUrls } = await client.media.v2.upload.create({ throwOnError: true });
       const file = new FileSystem.File(image.uri);
-      const ab = await file.arrayBuffer();
-      await fetch(uploadUrls.signedUrl, { method: "PUT", body: ab, headers: { "Content-Type": "image/jpeg" } });
+      const mediaUrl = await uploadImage(client, await file.arrayBuffer());
 
       const textPayload = texts
         .filter((item) => item.body.trim().length > 0)
@@ -815,7 +814,7 @@ export default function FleetComposerScreen() {
           backgroundColor,
           isNsfw,
           media: {
-            url: uploadUrls.url,
+            url: mediaUrl,
             width: image.width,
             height: image.height,
             bytes: image.fileSize ?? 0,
@@ -831,7 +830,11 @@ export default function FleetComposerScreen() {
       Toast.show({ type: "success", text1: "フリートを投稿しました" });
     } catch (error) {
       console.error("Failed to create fleet:", error);
-      Toast.show({ type: "error", text1: "エラー", text2: "フリートの投稿に失敗しました" });
+      Toast.show({
+        type: "error",
+        text1: "エラー",
+        text2: error instanceof UnsupportedImageError ? error.message : "フリートの投稿に失敗しました",
+      });
     } finally {
       setIsSubmitting(false);
     }

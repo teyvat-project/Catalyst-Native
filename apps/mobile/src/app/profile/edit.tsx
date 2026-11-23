@@ -12,6 +12,7 @@ import {
 import { ProfileEmoji } from "@/components/user/profile-emoji";
 import { useAsyncEffect } from "@/hooks/use-async-effect";
 import { getCdnUrl } from "@/lib/media";
+import { uploadImage as uploadMedia, UnsupportedImageError } from "@/lib/media-upload";
 import { accountAtom } from "@/models/atoms/account";
 import { clientAtom } from "@/models/atoms/credential";
 import type {
@@ -162,19 +163,7 @@ export default function ProfileEditScreen() {
   const uploadImage = useCallback(
     async (img: Image): Promise<string | null> => {
       const file = new FileSystem.File(img.path);
-      const ab = await file.arrayBuffer();
-      const { data: uploadUrls } = await client.media.v2.upload.create({ throwOnError: true });
-      const uploadResponse = await fetch(uploadUrls.signedUrl, {
-        method: "PUT",
-        body: ab,
-        headers: { "Content-Type": img.mime || "image/jpeg" },
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.status}`);
-      }
-
-      return uploadUrls.url;
+      return await uploadMedia(client, await file.arrayBuffer());
     },
     [client],
   );
@@ -205,7 +194,7 @@ export default function ProfileEditScreen() {
         Toast.show({
           type: "error",
           text1: "エラー",
-          text2: "画像のアップロードに失敗しました",
+          text2: error instanceof UnsupportedImageError ? error.message : "画像のアップロードに失敗しました",
         });
       } finally {
         setIsUploadingImage(false);

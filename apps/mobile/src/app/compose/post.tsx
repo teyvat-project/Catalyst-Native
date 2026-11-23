@@ -12,6 +12,7 @@ import {
 } from "@/components/design-system";
 import { WeeklyThemeSelectorSheet, type WeeklyThemeSelectorSheetRef } from "@/components/theme/selector-sheet";
 import { readImageMetadata, type ImageMetadataSummary } from "@/lib/image-metadata";
+import { uploadImage, UnsupportedImageError } from "@/lib/media-upload";
 import { accountAtom } from "@/models/atoms/account";
 import type { CatalystContest, CatalystWeeklyTheme } from "@/models/sdk-types";
 import * as FileSystem from "expo-file-system";
@@ -201,18 +202,11 @@ export default function PostComposerScreen() {
       const mediaList: { url: string; alt: string; width: number; height: number; bytes: number }[] = [];
 
       for (const image of images) {
-        const { data: uploadUrls } = await client.media.v2.upload.create({ throwOnError: true });
         const file = new FileSystem.File(image.uri);
-        const ab = await file.arrayBuffer();
-
-        await fetch(uploadUrls.signedUrl, {
-          method: "PUT",
-          body: ab,
-          headers: { "Content-Type": "image/jpeg" },
-        });
+        const url = await uploadImage(client, await file.arrayBuffer());
 
         mediaList.push({
-          url: uploadUrls.url,
+          url,
           alt: "",
           width: image.width,
           height: image.height,
@@ -242,7 +236,11 @@ export default function PostComposerScreen() {
       router.push(`/status/${result.id}`);
     } catch (error) {
       console.error("Failed to create status:", error);
-      Toast.show({ type: "error", text1: "エラー", text2: "投稿に失敗しました" });
+      Toast.show({
+        type: "error",
+        text1: "エラー",
+        text2: error instanceof UnsupportedImageError ? error.message : "投稿に失敗しました",
+      });
     } finally {
       setIsSubmitting(false);
     }
