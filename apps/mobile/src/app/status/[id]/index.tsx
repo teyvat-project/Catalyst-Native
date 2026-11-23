@@ -13,6 +13,7 @@ import {
 import { EmojiPickerSheet, type EmojiPickerSheetRef } from "@/components/emoji-verse";
 import { ReactionBar } from "@/components/reaction-bar";
 import { ActionBar } from "@/components/status/action-bar";
+import { StatusPassphraseLocked } from "@/components/status/passphrase-locked";
 import { StatusText } from "@/components/status/text";
 import { StatusVisibilityBadge } from "@/components/status/visibility-badge";
 import { StatusDetailPlaceholder } from "@/components/timeline/placeholder";
@@ -33,7 +34,13 @@ import {
   type EpicleseMetadata,
   type EpicleseReference,
 } from "@/models/epiclese";
-import type { CatalystContest, CatalystReaction, CatalystStatusV1_1, CatalystWeeklyTheme } from "@/models/sdk-types";
+import type {
+  CatalystContest,
+  CatalystReaction,
+  CatalystStatusDenied,
+  CatalystStatusV1_1,
+  CatalystWeeklyTheme,
+} from "@/models/sdk-types";
 import {
   applyReactionStreamingEvent,
   registerLocalReactionMutation,
@@ -144,6 +151,13 @@ const getWeeklyTheme = (weeklyTheme: unknown): Pick<CatalystWeeklyTheme, "slug" 
   };
 };
 
+// 投稿が合言葉付きで、まだ解除していないときに投げる
+class PassphraseRequiredError extends Error {
+  constructor(readonly author: CatalystStatusDenied["author"]) {
+    super("passphrase_required");
+  }
+}
+
 const METADATA_LABELS: Record<string, string> = {
   Author: "撮影者",
   LocationName: "撮影場所",
@@ -168,6 +182,7 @@ export default function StatusDetailsPage() {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [reactions, setReactions] = useState<Record<string, CatalystReaction>>({});
   const [editingCaption, setEditingCaption] = useState("");
+  const [editingPassphrase, setEditingPassphrase] = useState("");
   const [isEditSheetVisible, setIsEditSheetVisible] = useState(false);
   const [isAlbumSelectionVisible, setIsAlbumSelectionVisible] = useState(false);
   const [albumSelectionMode, setAlbumSelectionMode] = useState<"add" | "remove">("add");
@@ -175,6 +190,8 @@ export default function StatusDetailsPage() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [isReposted, setIsReposted] = useState(false);
   const [isNotFound, setIsNotFound] = useState(false);
+  const [passphraseLockedAuthor, setPassphraseLockedAuthor] = useState<CatalystStatusDenied["author"] | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const emojiPickerRef = useRef<EmojiPickerSheetRef>(null);
   const menuSheetRef = useRef<BottomSheetModal>(null);
   const theme = useColorScheme() ?? "light";
@@ -209,6 +226,7 @@ export default function StatusDetailsPage() {
   const isMyself = account?.user?.id === status?.user?.id;
   const isLoggedIn = account !== null;
   const privacy = status?.privacy;
+  const isPassphrase = privacy === "passphrase";
   const statusUrl = `https://catalyst.natsuneko.com/status/${id}`;
 
   useEffect(() => {
@@ -217,7 +235,12 @@ export default function StatusDetailsPage() {
     const fetchData = async () => {
       try {
         const [statusRes, metadataRes, reactionsRes] = await Promise.all([
-          client.catalyst.v11.status.id.get({ path: { id }, throwOnError: true }).then(({ data }) => data.status),
+          client.catalyst.v11.status.id.get({ path: { id } }).then(({ data, error, response }) => {
+            if (data) return data.status;
+            const denied = response?.status === 403 ? (error as { denied?: CatalystStatusDenied }).denied : undefined;
+            if (denied?.reason === "passphrase_required") throw new PassphraseRequiredError(denied.author);
+            throw new Error(`Failed to fetch status: ${response?.status}`);
+          }),
           fetch(`https://api.natsuneko.com/epiclese/v1/tag/by/status/${id}`)
             .then((r) => r.json() as Promise<EpicleseMetadata>)
             .catch(() => ({})),
@@ -227,6 +250,7 @@ export default function StatusDetailsPage() {
             .catch(() => ({})),
         ]);
         setStatus(statusRes);
+        setPassphraseLockedAuthor(null);
         setMetadata(metadataRes ?? {});
         setReactions(reactionsRes);
 
@@ -252,13 +276,24 @@ export default function StatusDetailsPage() {
           setIsFavorited(favRes as boolean);
           setIsReposted(repostRes as boolean);
         }
-      } catch {
-        setIsNotFound(true);
+      } catch (e) {
+        if (e instanceof PassphraseRequiredError) {
+          setPassphraseLockedAuthor(e.author);
+        } else {
+          setIsNotFound(true);
+        }
       }
     };
 
     fetchData();
-  }, [id, account, client, metadataRevision]);
+  }, [id, account, client, metadataRevision, reloadKey]);
+
+  // 解除 API が返した投稿をすぐ出し、リアクションやいいねの状態などは取り直す
+  const handlePassphraseUnlocked = useCallback((unlocked: CatalystStatusV1_1) => {
+    setStatus(unlocked);
+    setPassphraseLockedAuthor(null);
+    setReloadKey((key) => key + 1);
+  }, []);
 
   const handleStreamingReaction = useCallback(
     (event: ReactionStreamingEvent) => {
@@ -355,23 +390,29 @@ export default function StatusDetailsPage() {
     }
   }, [account, id, router]);
 
+  const canSaveEdit =
+    !isEditingSaving && editingCaption.length > 0 && (!isPassphrase || editingPassphrase.trim().length > 0);
+
   const handleEditSave = useCallback(async () => {
-    if (!account?.credential.client || !id || !editingCaption) return;
+    if (!account?.credential.client || !id || !canSaveEdit) return;
     setIsEditingSaving(true);
     try {
       await account.credential.client.catalyst.v1.status.id.patch({
         path: { id },
-        body: { description: editingCaption },
+        // 公開済みの投稿で変えられるのは合言葉の文字列だけで、公開範囲そのものは変えられない
+        body: { description: editingCaption, ...(isPassphrase && { passphrase: editingPassphrase }) },
         throwOnError: true,
       });
-      setStatus((prev) => (prev ? { ...prev, body: editingCaption } : prev));
+      // 応答には投稿 ID しか無いので、サーバーと同じく正規化 (NFKC → 前後の空白を除去) した値を手元に持つ
+      const passphrase = editingPassphrase.normalize("NFKC").trim();
+      setStatus((prev) => (prev ? { ...prev, body: editingCaption, ...(isPassphrase && { passphrase }) } : prev));
       setIsEditSheetVisible(false);
     } catch {
       Alert.alert("エラー", "更新に失敗しました");
     } finally {
       setIsEditingSaving(false);
     }
-  }, [account, id, editingCaption]);
+  }, [account, id, canSaveEdit, editingCaption, editingPassphrase, isPassphrase]);
 
   const handleMenuAction = useCallback(
     (action: MenuAction) => {
@@ -386,6 +427,7 @@ export default function StatusDetailsPage() {
           break;
         case "edit":
           setEditingCaption(status?.body ?? "");
+          setEditingPassphrase(status?.passphrase ?? "");
           setIsEditSheetVisible(true);
           break;
         case "editMetadata":
@@ -501,6 +543,28 @@ export default function StatusDetailsPage() {
 
   const user = status?.user;
 
+  // 合言葉付きの投稿だけ、キャプションと一緒に合言葉も変えられる
+  const editPassphraseField = isPassphrase ? (
+    <View className="border-b border-light-border px-4 py-3 dark:border-dark-border">
+      <CatalystText variant="caption" tone="muted">
+        合言葉
+      </CatalystText>
+      <TextInput
+        className="mt-1 text-base text-light-text dark:text-dark-text"
+        value={editingPassphrase}
+        onChangeText={setEditingPassphrase}
+        placeholder="合言葉を入力"
+        placeholderTextColorClassName="accent-light-text-subtle dark:accent-dark-text-subtle"
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="off"
+      />
+      <CatalystText variant="caption" tone="subtle" className="mt-1 leading-4">
+        閲覧するときに入力してもらう合言葉です。大文字と小文字は区別されます。変えると、前の合言葉で解除した人も見られなくなります
+      </CatalystText>
+    </View>
+  ) : null;
+
   return (
     <>
       <Stack.Screen
@@ -513,7 +577,13 @@ export default function StatusDetailsPage() {
         }}
       />
 
-      {!status && isNotFound ? (
+      {!status && passphraseLockedAuthor ? (
+        <StatusPassphraseLocked
+          author={passphraseLockedAuthor}
+          statusId={id}
+          onUnlocked={handlePassphraseUnlocked}
+        />
+      ) : !status && isNotFound ? (
         <View className="flex-1 bg-light-background dark:bg-dark-background">
           <CatalystEmptyState
             title="投稿が見つかりません"
@@ -563,7 +633,7 @@ export default function StatusDetailsPage() {
                   </CatalystText>
                 </Pressable>
 
-                <StatusVisibilityBadge className="ml-2 self-center" privacy={privacy} />
+                <StatusVisibilityBadge className="ml-2 self-center" privacy={privacy} passphrase={status.passphrase} />
               </View>
             </View>
 
@@ -779,18 +849,19 @@ export default function StatusDetailsPage() {
               <Pressable
                 className="active:opacity-70 disabled:opacity-40"
                 onPress={handleEditSave}
-                disabled={isEditingSaving || editingCaption.length === 0}
+                disabled={!canSaveEdit}
               >
                 <Text
                   className={cn(
                     "text-[17px] font-semibold text-light-tint dark:text-dark-tint",
-                    (isEditingSaving || editingCaption.length === 0) && "opacity-40",
+                    !canSaveEdit && "opacity-40",
                   )}
                 >
                   保存
                 </Text>
               </Pressable>
             </View>
+            {editPassphraseField}
             <TextInput
               className="flex-1 p-4 text-base text-light-text dark:text-dark-text"
               value={editingCaption}
@@ -816,15 +887,16 @@ export default function StatusDetailsPage() {
               </Text>
               <Pressable
                 onPress={handleEditSave}
-                disabled={isEditingSaving || editingCaption.length === 0}
+                disabled={!canSaveEdit}
                 className={cn(
                   "m-2 rounded-full bg-light-tint px-4 py-2 active:opacity-80 dark:bg-dark-tint",
-                  (isEditingSaving || editingCaption.length === 0) && "opacity-40",
+                  !canSaveEdit && "opacity-40",
                 )}
               >
                 <UniCheck size={22} className="text-light-tint-foreground dark:text-dark-tint-foreground" />
               </Pressable>
             </View>
+            {editPassphraseField}
             <TextInput
               className="flex-1 p-4 text-base text-light-text dark:text-dark-text"
               value={editingCaption}
@@ -859,7 +931,8 @@ export default function StatusDetailsPage() {
         handleIndicatorStyle={{ backgroundColor: theme === "dark" ? "#48484A" : "#C7C7CC" }}
       >
         <BottomSheetView style={{ paddingBottom: insets.bottom * 2 }}>
-          {isLoggedIn && (
+          {/* 合言葉付きの投稿はアルバムに追加できない */}
+          {isLoggedIn && !isPassphrase && (
             <View>
               <CatalystActionSheetItem
                 icon={UniBookmark}

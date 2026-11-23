@@ -5,7 +5,8 @@ import {
   CatalystButtonIcon,
   CatalystButtonText,
   CatalystDivider,
-  CatalystSegmentedControl,
+  CatalystListItem,
+  CatalystListItemContent,
   CatalystSwitch,
   CatalystText,
   CatalystTextField,
@@ -19,7 +20,7 @@ import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
-import { CalendarDays, Image as ImageIcon, Trophy, X } from "lucide-react-native";
+import { CalendarDays, Check, Image as ImageIcon, Trophy, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -35,6 +36,7 @@ const UniImageIcon = withUniwind(ImageIcon);
 const UniTrophy = withUniwind(Trophy);
 const UniCalendarDays = withUniwind(CalendarDays);
 const UniX = withUniwind(X);
+const UniCheck = withUniwind(Check);
 
 const MAX_CHARACTER_COUNT = 1000;
 const MAX_IMAGE_COUNT = 10;
@@ -48,14 +50,23 @@ type SelectedImage = {
   metadata: ImageMetadataSummary | null;
 };
 
-type Privacy = "public" | "quiet_public" | "followers" | "private";
+type Privacy = "public" | "quiet_public" | "followers" | "passphrase" | "private";
 
 const PRIVACY_OPTIONS: { value: Privacy; label: string; description: string }[] = [
   { value: "public", label: "公開", description: "すべてのユーザーに公開されます" },
   { value: "quiet_public", label: "静かに公開", description: "公開されますが、タイムラインには表示されません" },
   { value: "followers", label: "フォロワー", description: "フォロワーのみに表示されます" },
+  {
+    value: "passphrase",
+    label: "合言葉",
+    description: "合言葉を知っている人だけが見られます。プロフィールとフォロワーのタイムラインには鍵付きで表示されます",
+  },
   { value: "private", label: "非公開", description: "自分のみに表示されます" },
 ];
+
+// サーバーと同じく、NFKC で正規化して前後の空白を除いた長さ (コードポイント数) で数える
+const MAX_PASSPHRASE_LENGTH = 64;
+const countPassphraseLength = (passphrase: string) => [...passphrase.normalize("NFKC").trim()].length;
 
 export default function PostComposerScreen() {
   const router = useRouter();
@@ -65,6 +76,7 @@ export default function PostComposerScreen() {
   const [images, setImages] = useState<SelectedImage[]>([]);
   const [text, setText] = useState("");
   const [privacy, setPrivacy] = useState<Privacy>("public");
+  const [passphrase, setPassphrase] = useState("");
   const [isNsfw, setIsNsfw] = useState(false);
   const [isSpoiler, setIsSpoiler] = useState(false);
   const [isPrivateMetadata, setIsPrivateMetadata] = useState(false);
@@ -80,12 +92,16 @@ export default function PostComposerScreen() {
   const characterCount = text.length;
   const isOverLimit = characterCount > MAX_CHARACTER_COUNT;
   const canAddMoreImages = images.length < MAX_IMAGE_COUNT;
+  const isPassphrase = privacy === "passphrase";
+  const passphraseLength = countPassphraseLength(passphrase);
+  const isPassphraseValid = passphraseLength > 0 && passphraseLength <= MAX_PASSPHRASE_LENGTH;
 
   const canPost = useMemo(() => {
     if (isSubmitting || isOverLimit) return false;
+    if (isPassphrase && !isPassphraseValid) return false;
     if (images.length > 0) return true;
     return text.trim().length > 0;
-  }, [isSubmitting, isOverLimit, images.length, text]);
+  }, [isSubmitting, isOverLimit, isPassphrase, isPassphraseValid, images.length, text]);
 
   const metadataEntries = useMemo<ImageMetadataEntry[]>(
     () => images.map(({ uri, metadataStatus, metadata }) => ({ uri, status: metadataStatus, metadata })),
@@ -96,7 +112,7 @@ export default function PostComposerScreen() {
     let ignore = false;
 
     const restoreContest = async () => {
-      if (!account || !contestSlug || selectedContest?.slug === contestSlug) return;
+      if (!account || !contestSlug || isPassphrase || selectedContest?.slug === contestSlug) return;
 
       const { data } = await account.credential.client.catalyst.v1.contest.by.slug.slug.get({
         path: { slug: contestSlug },
@@ -114,13 +130,13 @@ export default function PostComposerScreen() {
     return () => {
       ignore = true;
     };
-  }, [account, contestSlug, selectedContest?.slug]);
+  }, [account, contestSlug, isPassphrase, selectedContest?.slug]);
 
   useEffect(() => {
     let ignore = false;
 
     const restoreWeeklyTheme = async () => {
-      if (!account || !themeSlug || selectedWeeklyTheme?.slug === themeSlug) return;
+      if (!account || !themeSlug || isPassphrase || selectedWeeklyTheme?.slug === themeSlug) return;
       const weeklyThemes = account.credential.client.catalyst.v1.weeklyThemes;
       if (!weeklyThemes) return;
 
@@ -140,7 +156,7 @@ export default function PostComposerScreen() {
     return () => {
       ignore = true;
     };
-  }, [account, themeSlug, selectedWeeklyTheme?.slug]);
+  }, [account, themeSlug, isPassphrase, selectedWeeklyTheme?.slug]);
 
   // 画像に VRChat / Resonite の撮影メタデータが埋め込まれているかは投稿するまで分からないため、
   // 選択直後にローカルで解析して投稿画面に表示する
@@ -225,6 +241,8 @@ export default function PostComposerScreen() {
           isPrivateMetadata,
           isAllowComments: true,
           privacy,
+          // 正規化はサーバーが行うので、入力をそのまま送る
+          passphrase: isPassphrase ? passphrase : undefined,
           contestId: selectedContest?.slug,
           weeklyThemeId: selectedWeeklyTheme?.slug,
           media: mediaList,
@@ -244,7 +262,30 @@ export default function PostComposerScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [canPost, account, images, text, isNsfw, isSpoiler, isPrivateMetadata, privacy, selectedContest, selectedWeeklyTheme, router]);
+  }, [
+    canPost,
+    account,
+    images,
+    text,
+    isNsfw,
+    isSpoiler,
+    isPrivateMetadata,
+    privacy,
+    isPassphrase,
+    passphrase,
+    selectedContest,
+    selectedWeeklyTheme,
+    router,
+  ]);
+
+  // 合言葉付きの投稿はコンテストにもお題にも参加できない
+  const handlePrivacyChange = useCallback((value: Privacy) => {
+    setPrivacy(value);
+    if (value === "passphrase") {
+      setSelectedContest(null);
+      setSelectedWeeklyTheme(null);
+    }
+  }, []);
 
   const handleContestSelect = useCallback((contest: CatalystContest) => {
     setSelectedContest(contest);
@@ -260,7 +301,6 @@ export default function PostComposerScreen() {
     setText((prev) => (prev ? `${prev}\n#${hashtag}` : `#${hashtag}`));
   }, []);
 
-  const selectedPrivacy = PRIVACY_OPTIONS.find((o) => o.value === privacy)!;
   const weeklyThemeHashtag = selectedWeeklyTheme?.hashtag ?? null;
 
   return (
@@ -394,12 +434,60 @@ export default function PostComposerScreen() {
             <CatalystText variant="caption" tone="subtle" className="px-5 pb-2">
               プライバシー
             </CatalystText>
-            <View className="bg-light-background px-5 py-3 dark:bg-dark-surface">
-              <CatalystSegmentedControl options={PRIVACY_OPTIONS} value={privacy} onValueChange={setPrivacy} />
+            {/* 選択肢が 5 つあり、セグメントでは名前が収まらないので、説明付きの一覧から選ぶ */}
+            <View className="bg-light-background dark:bg-dark-surface">
+              {PRIVACY_OPTIONS.map((option, index) => (
+                <View key={option.value}>
+                  <CatalystListItem
+                    divided={false}
+                    className="min-h-14 px-5 py-3"
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: privacy === option.value }}
+                    onPress={() => handlePrivacyChange(option.value)}
+                  >
+                    <CatalystListItemContent className="gap-0.5">
+                      <CatalystText variant="subtitle" className="text-[15px] font-semibold">
+                        {option.label}
+                      </CatalystText>
+                      <CatalystText variant="caption" tone="muted">
+                        {option.description}
+                      </CatalystText>
+                    </CatalystListItemContent>
+                    {privacy === option.value && <UniCheck size={18} className="text-light-tint dark:text-dark-tint" />}
+                  </CatalystListItem>
+                  {index < PRIVACY_OPTIONS.length - 1 && <CatalystDivider className="ml-5 w-auto" />}
+                </View>
+              ))}
             </View>
-            <CatalystText variant="caption" tone="subtle" className="px-5 pt-2 leading-4">
-              {selectedPrivacy.description}
-            </CatalystText>
+            {isPassphrase && (
+              <>
+                <View className="mt-3 bg-light-background px-5 py-3 dark:bg-dark-surface">
+                  <CatalystText variant="subtitle" className="text-[15px] font-semibold">
+                    合言葉
+                  </CatalystText>
+                  <CatalystTextField
+                    value={passphrase}
+                    onChangeText={setPassphrase}
+                    placeholder="合言葉を入力"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="off"
+                    className="mt-1 min-h-10"
+                  />
+                </View>
+                <View className="flex-row items-start justify-between gap-4 px-5 pt-2">
+                  <CatalystText variant="caption" tone="subtle" className="flex-1 leading-4">
+                    閲覧するときに入力してもらう合言葉です。大文字と小文字は区別されます
+                  </CatalystText>
+                  <CatalystText
+                    variant="caption"
+                    tone={passphraseLength > MAX_PASSPHRASE_LENGTH ? "danger" : "subtle"}
+                  >
+                    {passphraseLength} / {MAX_PASSPHRASE_LENGTH}
+                  </CatalystText>
+                </View>
+              </>
+            )}
             <View className="mt-3 min-h-16 flex-row items-center bg-light-background px-5 py-3 dark:bg-dark-surface">
               <View className="mr-4 flex-1">
                 <CatalystText variant="subtitle" className="text-[15px] font-semibold">
@@ -440,7 +528,11 @@ export default function PostComposerScreen() {
               </View>
             ) : (
               <View className="bg-light-background px-5 py-3 dark:bg-dark-surface">
-                <CatalystButton tone="secondary" onPress={() => contestSelectorRef.current?.open()}>
+                <CatalystButton
+                  tone="secondary"
+                  disabled={isPassphrase}
+                  onPress={() => contestSelectorRef.current?.open()}
+                >
                   <CatalystButtonIcon>
                     <UniTrophy />
                   </CatalystButtonIcon>
@@ -451,7 +543,9 @@ export default function PostComposerScreen() {
               </View>
             )}
             <CatalystText variant="caption" tone="subtle" className="px-5 pt-2 leading-4">
-              コンテストに参加すると、この投稿がコンテストの応募作品として登録されます。
+              {isPassphrase
+                ? "合言葉付きの投稿はコンテストに参加できません。"
+                : "コンテストに参加すると、この投稿がコンテストの応募作品として登録されます。"}
             </CatalystText>
           </View>
 
@@ -492,7 +586,11 @@ export default function PostComposerScreen() {
               </View>
             ) : (
               <View className="bg-light-background px-5 py-3 dark:bg-dark-surface">
-                <CatalystButton tone="secondary" onPress={() => weeklyThemeSelectorRef.current?.open()}>
+                <CatalystButton
+                  tone="secondary"
+                  disabled={isPassphrase}
+                  onPress={() => weeklyThemeSelectorRef.current?.open()}
+                >
                   <CatalystButtonIcon>
                     <UniCalendarDays />
                   </CatalystButtonIcon>
@@ -501,7 +599,9 @@ export default function PostComposerScreen() {
               </View>
             )}
             <CatalystText variant="caption" tone="subtle" className="px-5 pt-2 leading-4">
-              お題への参加は週につき一度だけポイントが付与されます。
+              {isPassphrase
+                ? "合言葉付きの投稿はお題に参加できません。"
+                : "お題への参加は週につき一度だけポイントが付与されます。"}
             </CatalystText>
           </View>
         </ScrollView>

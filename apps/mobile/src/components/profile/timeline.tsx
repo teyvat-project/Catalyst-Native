@@ -1,5 +1,6 @@
 import { useDeviceLayout } from "@/lib/device-layout";
 import { useAsyncOneTimeEffect } from "@/hooks/use-async-one-time-effect";
+import { useUnlockedStatus } from "@/hooks/use-unlocked-status";
 import { MediaBadges } from "@/components/ui/media-badges";
 import { getCdnUrl } from "@/lib/media";
 import { merge } from "@/lib/merge";
@@ -8,12 +9,15 @@ import { CatalystStatus, EgeriaUser } from "@/models/sdk-types";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
-import { MessageSquare } from "lucide-react-native";
+import { KeyRound, MessageSquare } from "lucide-react-native";
 import React, { memo, useCallback, useImperativeHandle, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { withUniwind } from "uniwind";
 import { ProfileTimelinePlaceholder } from "./placeholder";
 
 const GAP = 1;
+
+const UniKeyRound = withUniwind(KeyRound);
 
 type Props = {
   user?: EgeriaUser | null;
@@ -24,8 +28,11 @@ export type UserTimelineHandle = {
   refresh?: () => Promise<void>;
 };
 
-const ThumbnailCell = memo(({ status, cellSize }: { status: CatalystStatus; cellSize: number }) => {
+const ThumbnailCell = memo(({ status: received, cellSize }: { status: CatalystStatus; cellSize: number }) => {
   const router = useRouter();
+  // 合言葉付きの投稿は、投稿詳細などで解除されたら取り直して写真を出す
+  const { unlocked } = useUnlockedStatus(received);
+  const status = unlocked ?? received;
   const media = status.medias[0];
   const [isImageLoading, setIsImageLoading] = useState(true);
   const isSensitive = status.medias.some((w) => w.metadata?.isSensitive);
@@ -73,6 +80,15 @@ const ThumbnailCell = memo(({ status, cellSize }: { status: CatalystStatus; cell
               <ActivityIndicator colorClassName="accent-light-tint dark:accent-dark-tint" />
             </View>
           )}
+        </View>
+      ) : received.locked && !unlocked ? (
+        // 合言葉付きでまだ解除していない投稿は画像が抜かれて届く。開くと投稿詳細で合言葉を入力できる
+        <View
+          accessibilityLabel="合言葉で閲覧できる投稿"
+          className="flex-1 items-center justify-center gap-1 bg-light-surface-muted dark:bg-dark-surface"
+        >
+          <UniKeyRound size={24} className="text-light-text-muted dark:text-dark-text-muted" />
+          <Text className="text-[11px] text-light-text-muted dark:text-dark-text-muted">合言葉</Text>
         </View>
       ) : (
         <View className="flex-1 items-center justify-center bg-gray-200 dark:bg-gray-800">

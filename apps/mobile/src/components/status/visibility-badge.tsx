@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
 import type { CatalystStatusPrivacy } from "@/models/sdk-types";
-import { Lock, Users, VolumeX } from "lucide-react-native";
+import { KeyRound, Lock, Users, VolumeX } from "lucide-react-native";
 import { Text, View } from "react-native";
 import { withUniwind } from "uniwind";
 
+const UniKeyRound = withUniwind(KeyRound);
 const UniLock = withUniwind(Lock);
 const UniUsers = withUniwind(Users);
 const UniVolumeX = withUniwind(VolumeX);
@@ -11,16 +12,20 @@ const UniVolumeX = withUniwind(VolumeX);
 const CONFIG = {
   quiet_public: { icon: UniVolumeX, label: "静かに公開" },
   followers: { icon: UniUsers, label: "フォロワー" },
+  passphrase: { icon: UniKeyRound, label: "合言葉" },
   private: { icon: UniLock, label: "非公開" },
 } as const;
 
 type Props = React.ComponentProps<typeof View> & {
   privacy?: CatalystStatusPrivacy;
+  // 投稿者本人にだけ API から渡される合言葉
+  passphrase?: string;
 };
 
 export const StatusVisibilityBadge = ({
   className,
   privacy,
+  passphrase,
   ...props
 }: Props) => {
   if (!privacy || privacy === "public") return null;
@@ -40,10 +45,10 @@ export const StatusVisibilityBadge = ({
         className="text-light-text-muted dark:text-dark-text-muted"
       />
       <Text
-        className="text-[10px] text-light-text-muted dark:text-dark-text-muted"
+        className="max-w-40 text-[10px] text-light-text-muted dark:text-dark-text-muted"
         numberOfLines={1}
       >
-        {label}
+        {passphrase ? `${label}: ${passphrase}` : label}
       </Text>
     </View>
   );
